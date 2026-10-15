@@ -551,6 +551,13 @@ const SUBS = {
   },
 };
 
+const prettyService = (svc) =>
+  String(svc)
+    .replace(/^notify\./, "")
+    .replace(/^mobile_app_/, "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
 const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const clone = (value) => JSON.parse(JSON.stringify(value ?? null));
@@ -851,7 +858,7 @@ class AlarmAssistantPanel extends HTMLElement {
     const glanceRows = [
       ["sensors", "mdi:leak", g.sensors, `${this._subs("sensor").length}`],
       ["presence", "mdi:account-group-outline", g.persons, persons.map((p) => p.title).join(", ") || ui.none],
-      ["notify", "mdi:cellphone-message", g.push, [...o.notify_services, ...o.notify_alarm_services].map((s) => s.replace("notify.", "")).join(", ") || ui.none],
+      ["notify", "mdi:cellphone-message", g.push, [...new Set([...o.notify_services, ...o.notify_alarm_services])].map(prettyService).join(", ") || ui.none],
       ["notify", "mdi:phone-alert", g.call, `${(o.call_targets || []).length}`],
       ["reactions", "mdi:alarm-light-outline", g.alarmon, ui.alarmOn(o.announce_entities.length, o.turn_on_entities.length, o.close_covers.length)],
       ["camera", "mdi:cctv", g.cameras, this._subs("camera").map((c) => c.title).join(", ") || ui.none],
@@ -873,12 +880,7 @@ class AlarmAssistantPanel extends HTMLElement {
 
   _testGroups() {
     const o = this._cfg.options;
-    const pretty = (svc) =>
-      svc
-        .replace(/^notify\./, "")
-        .replace(/^mobile_app_/, "")
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (c) => c.toUpperCase());
+    const pretty = prettyService;
     const entityItems = (list) => (list || []).map((id) => [id, this._name(id)]);
     const devices = new Map((this._cfg.alexa_devices || []).map((d) => [d.id, d.name]));
     const push = [...new Set([...(o.notify_services || []), ...(o.notify_alarm_services || []), ...(o.notify_admin_services || [])])];
@@ -1543,6 +1545,8 @@ input:focus, select:focus, textarea:focus { outline:2px solid var(--primary-colo
 .row { display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid var(--divider-color); font:inherit; font-size:14px; color:var(--primary-text-color); background:none; border-left:none; border-right:none; border-top:none; text-align:left; width:100%; }
 .row:last-child { border-bottom:none; }
 .row > span { min-width:0; overflow-wrap:anywhere; }
+.row > span.grow { flex:1 1 40%; min-width:7em; overflow-wrap:normal; }
+.row > span.muted { flex:0 1 auto; text-align:right; }
 .row.link { cursor:pointer; }
 .row.link:hover, tbody tr:hover { background:var(--secondary-background-color, #f5f5f5); }
 .warn-row ha-icon { color:var(--warning-color, #ffa600); }
