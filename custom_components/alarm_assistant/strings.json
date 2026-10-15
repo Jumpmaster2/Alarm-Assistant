@@ -15,7 +15,7 @@
           "notify_alarm_services": "Only get the alarm itself (e.g. Pushover).",
           "notify_admin_services": "Faults of the motion filter and suppressed motion."
         },
-        "description": "Who gets which messages. Sensors, cameras and garages are added afterwards, everything else is in the options."
+        "description": "Who gets which messages. Everything else (sensors, reactions, call, presence, cameras) is set up afterwards on the page Alarm Assistant in the sidebar."
       },
       "alarm": {
         "title": "Alarm",

@@ -4,7 +4,7 @@
 
 Custom Integration für Home Assistant: eine Alarmzentrale mit allem, was sonst in vielen Automationen, Skripten und Helfern steckt. Scharf- und Unscharfschalten (auch automatisch bei Abwesenheit), Ein- und Ausgangsverzögerung, offene Fenster ignorieren, Durchsagen und Alarmton auf Alexa-Geräten, Licht und Rollos bei Alarm, Telefonanruf mit Quittierung über das ha-sip-Add-on, Türschloss, Kamera-Steuerung, Garagen-Kameras, ein Nacht-Türalarm und ein Fenster-offen-Hinweis an der Haustür. Alles wird in der Oberfläche eingestellt, es sind keine eigenen Automationen nötig.
 
-> Status: Version 0.2.1.
+> Status: Version 0.3.0.
 
 ## Funktionsweise
 
@@ -78,7 +78,15 @@ Die Integration arbeitet ereignisgesteuert: Sie reagiert nur auf Zustandswechsel
 
 ## Konfiguration
 
-* **Einrichtung:** Benachrichtigungen, Alarmzeiten und Code. Danach geht es direkt mit dem ersten Sensor weiter.
+Nach der Einrichtung gibt es in der Seitenleiste die Seite **Alarm Assistant** (nur für Administratoren, ähnlich wie bei Alarmo):
+
+* **Übersicht:** Zustand mit Scharf/Unscharf, Schalter, Personen (zuhause/weg), offene Kontakte, Hinweise, letzter Alarm, Testmeldung und eine Zusammenfassung der Einstellungen.
+* **Sensoren:** alle Kontakte und Bewegungsmelder als Tabelle mit Typ, Verhalten und aktuellem Zustand; anklicken zum Bearbeiten.
+* **Alarm, Bei Alarm, Meldungen & Anruf, Anwesenheit, Tür & Extras, Kamera & Garage:** alle Einstellungen nach Themen in Karten, jede Karte wird für sich gespeichert.
+
+Die Einstellungen lassen sich weiterhin auch über den Einrichtungsdialog ändern:
+
+* **Einrichtung:** Benachrichtigungen, Alarmzeiten und Code.
 * **Optionen** (Menü): Benachrichtigungen, Alarmzeiten und Code, Bewegungsfilter, Reaktionen bei Alarm, Telefonanruf, Automatisch scharf, Türschloss, Nacht-Türalarm, Kinder und Hinweise.
 * **Unterpunkte:** Sensor, Person, Kamera, Garage (beliebig viele).
 

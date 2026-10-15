@@ -15,7 +15,7 @@
           "notify_alarm_services": "Bekommen nur den Alarm selbst (z. B. Pushover).",
           "notify_admin_services": "Fehler des Bewegungsfilters und unterdrückte Bewegung."
         },
-        "description": "Wer welche Meldungen bekommt. Sensoren, Kameras und Garagen werden danach hinzugefügt, alles andere steht in den Optionen."
+        "description": "Wer welche Meldungen bekommt. Alles Weitere (Sensoren, Reaktionen, Anruf, Anwesenheit, Kameras) wird danach auf der Seite Alarm Assistant in der Seitenleiste eingestellt."
       },
       "alarm": {
         "title": "Alarm",

@@ -168,6 +168,24 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_HINT_DURATION: 30,
 }
 
+# Options without a default (entities or texts that may be empty).
+OPTIONAL_TEXT_KEYS: Final = (
+    CONF_VACUUM,
+    CONF_VACUUM_CHARGING,
+    CONF_FAULT_SENSOR,
+    CONF_TEXT_TRIGGERED,
+    CONF_TEXT_PENDING,
+    CONF_CALL_ADDON,
+    CONF_CALL_TTS,
+    CONF_LOCK,
+    CONF_LOCK_DOOR,
+    CONF_NIGHT_DOOR,
+    CONF_NIGHT_TAG,
+    CONF_NIGHT_TEXT,
+    CONF_HINT_DOOR,
+    CONF_HINT_ENTITY,
+)
+
 # ---------- sensor (subentry)
 CONF_NAME = "name"
 CONF_ENTITY = "entity"

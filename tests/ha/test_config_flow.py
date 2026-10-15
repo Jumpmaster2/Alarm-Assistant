@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from homeassistant.config_entries import SOURCE_RECONFIGURE, SOURCE_USER, FlowType
+from homeassistant.config_entries import SOURCE_RECONFIGURE, SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
@@ -47,7 +47,7 @@ async def test_user_flow(hass: HomeAssistant, base_states) -> None:
     assert entry.options["notify_services"] == ["notify.phone"]
     assert entry.options["code"] == hash_code("4711")
     assert entry.options["entry_delay"] == 30
-    assert result["next_flow"][0] == FlowType.CONFIG_SUBENTRIES_FLOW
+    assert "next_flow" not in result
 
 
 async def _options(hass: HomeAssistant, entry, step: str, data: dict) -> dict:

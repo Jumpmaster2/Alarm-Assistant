@@ -6,12 +6,10 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import (
-    SOURCE_USER,
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
     ConfigSubentryFlow,
-    FlowType,
     OptionsFlow,
     SubentryFlowResult,
 )
@@ -481,17 +479,6 @@ class AlarmConfigFlow(ConfigFlow, domain=DOMAIN):
             }
         )
         return self.async_show_form(step_id="alarm", data_schema=schema)
-
-    async def async_on_create_entry(self, result: ConfigFlowResult) -> ConfigFlowResult:
-        """Directly continue with the first sensor."""
-        entry = result.get("result")
-        if entry is None:
-            return result
-        sub = await self.hass.config_entries.subentries.async_init(
-            (entry.entry_id, SUBENTRY_SENSOR), context={"source": SOURCE_USER}
-        )
-        result["next_flow"] = (FlowType.CONFIG_SUBENTRIES_FLOW, sub["flow_id"])
-        return result
 
 
 # ---------------------------------------------------------------- options flow
