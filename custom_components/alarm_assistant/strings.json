@@ -232,6 +232,7 @@
               "night_off_time": "Switch off at",
               "night_off_days": "On these days",
               "night_off_speak_services": "Announce when switched off by tag",
+              "night_off_volume_players": "Speakers for this announcement",
               "night_off_volume": "Volume of this announcement"
             }
           }

@@ -18,6 +18,7 @@ _TEXTS: dict[str, dict[str, str]] = {
     "announce_night_off": {"de": "Alarm ist deaktiviert", "en": "Alarm is disarmed"},
     # notifications
     "title_alarm": {"de": "ALARM", "en": "ALARM"},
+    "title_pending": {"de": "Auslösung", "en": "Alarm pending"},
     "push_triggered": {
         "de": "Der Alarm wurde ausgelöst! Ursache: {cause}.",
         "en": "The alarm has been triggered! Cause: {cause}.",

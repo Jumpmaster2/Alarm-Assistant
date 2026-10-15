@@ -536,3 +536,27 @@ async def test_persons_by_wifi(
     assert any("Nobody" in c.data["message"] for c in calls["notify"])
     await advance(hass, freezer, 5 * 60 + 30)
     assert _state(hass) == "armed_away"
+
+
+async def test_night_door_tag_off_announcement(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    options = {
+        "night_door_sensor": DOOR,
+        "night_tag": "tag-1",
+        "night_volume_players": ["media_player.kitchen", "media_player.bedroom"],
+        "night_off_speak_services": ["notify.speaker"],
+        "night_off_volume_players": ["media_player.kitchen"],
+    }
+    await setup_entry(hass, make_entry(**options))
+    hass.bus.async_fire("tag_scanned", {"tag_id": "tag-1"})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    await advance(hass, freezer, 15)
+    hass.bus.async_fire("tag_scanned", {"tag_id": "tag-1"})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.states.get(NIGHT).state == "off"
+    assert calls["volume"][-1].data == {
+        "entity_id": ["media_player.kitchen"],
+        "volume_level": 0.3,
+    }
+    assert calls["speak"][-1].data["message"] == "Alarm is disarmed"

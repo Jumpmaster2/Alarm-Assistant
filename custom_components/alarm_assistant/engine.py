@@ -89,6 +89,7 @@ from .const import (
     CONF_NIGHT_OFF_SPEAK,
     CONF_NIGHT_OFF_TIME,
     CONF_NIGHT_OFF_VOLUME,
+    CONF_NIGHT_OFF_VOLUME_PLAYERS,
     CONF_NIGHT_RESET_AFTER,
     CONF_NIGHT_SOUND_DEVICES,
     CONF_NIGHT_SPEAK,
@@ -610,7 +611,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             domain, _, service = str(target).partition(".")
             if not service:
                 domain, service = "notify", domain
-            payload: dict[str, Any] = {"title": title, "message": message}
+            payload: dict[str, Any] = {"message": message}
+            if title:
+                payload["title"] = title
             if data:
                 payload["data"] = data
             await self._async_call(domain, service, payload)
@@ -921,7 +924,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             self._schedule("entry", now + timedelta(seconds=entry_delay), self._entry_over)
             text_pending = self.opt(CONF_TEXT_PENDING) or self.t("announce_pending")
             self._task(
-                "announce_pending", self._async_announce(text_pending, self.t("title_alarm"))
+                "announce_pending", self._async_announce(text_pending, self.t("title_pending"))
             )
         else:
             self._trigger(now)
@@ -1243,7 +1246,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
 
     async def _async_night_off(self) -> None:
         await self._async_volume(
-            self.opt_list(CONF_NIGHT_VOLUME_PLAYERS), float(self.opt(CONF_NIGHT_OFF_VOLUME))
+            self.opt_list(CONF_NIGHT_OFF_VOLUME_PLAYERS), float(self.opt(CONF_NIGHT_OFF_VOLUME))
         )
         await self._async_speak(self.opt_list(CONF_NIGHT_OFF_SPEAK), self.t("announce_night_off"))
 
@@ -1452,16 +1455,22 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             image = self._state(camera.conf.get(CONF_PERSON_IMAGE))
             picture = image.attributes.get("entity_picture") if image else None
             if picture:
-                try:
-                    data = {"image": get_url(self.hass, prefer_external=True) + str(picture)}
-                except NoURLAvailableError:
-                    data = None
+                data = {"image": url + str(picture)} if (url := self._base_url()) else None
             self._notify(
                 self.opt_list(CONF_NOTIFY),
                 self.t("title_person"),
                 self.t("push_person", camera=camera.name),
                 data=data,
             )
+
+    def _base_url(self) -> str | None:
+        """External URL, else internal URL, else the cloud URL."""
+        for kwargs in ({"allow_cloud": False}, {}):
+            try:
+                return get_url(self.hass, prefer_external=True, **kwargs)
+            except NoURLAvailableError:
+                continue
+        return None
 
     # ------------------------------------------------------------------ garage
 

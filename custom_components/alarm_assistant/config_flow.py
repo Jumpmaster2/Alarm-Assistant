@@ -87,6 +87,7 @@ from .const import (
     CONF_NIGHT_OFF_SPEAK,
     CONF_NIGHT_OFF_TIME,
     CONF_NIGHT_OFF_VOLUME,
+    CONF_NIGHT_OFF_VOLUME_PLAYERS,
     CONF_NIGHT_RESET_AFTER,
     CONF_NIGHT_SOUND_DEVICES,
     CONF_NIGHT_SPEAK,
@@ -380,6 +381,7 @@ def _night_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
                             CONF_NIGHT_OFF_DAYS, default=list(v.get(CONF_NIGHT_OFF_DAYS) or [])
                         ): _choice(WEEKDAYS, "weekday", multiple=True),
                         _list(CONF_NIGHT_OFF_SPEAK, v): _services(hass),
+                        _list(CONF_NIGHT_OFF_VOLUME_PLAYERS, v): _entity(["media_player"], True),
                         _req(CONF_NIGHT_OFF_VOLUME, v): _number(0, 1, 0.01),
                     }
                 ),

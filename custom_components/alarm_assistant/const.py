@@ -105,6 +105,7 @@ CONF_NIGHT_SPEAK = "night_speak_services"
 CONF_NIGHT_TEXT = "night_text"
 CONF_NIGHT_OFF_SPEAK = "night_off_speak_services"
 CONF_NIGHT_OFF_VOLUME = "night_off_volume"
+CONF_NIGHT_OFF_VOLUME_PLAYERS = "night_off_volume_players"
 CONF_NIGHT_RESET_AFTER = "night_reset_volume_after"
 
 # ---------- window open hint at the door
@@ -161,6 +162,7 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_NIGHT_SPEAK: [],
     CONF_NIGHT_OFF_SPEAK: [],
     CONF_NIGHT_OFF_VOLUME: 0.3,
+    CONF_NIGHT_OFF_VOLUME_PLAYERS: [],
     CONF_NIGHT_RESET_AFTER: 5,
     CONF_HINT_WINDOWS: [],
     CONF_HINT_DURATION: 30,

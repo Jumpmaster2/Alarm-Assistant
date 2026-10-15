@@ -232,6 +232,7 @@
               "night_off_time": "Ausschalten um",
               "night_off_days": "An diesen Tagen",
               "night_off_speak_services": "Ansage beim Ausschalten per Tag",
+              "night_off_volume_players": "Lautsprecher für diese Ansage",
               "night_off_volume": "Lautstärke dieser Ansage"
             }
           }
