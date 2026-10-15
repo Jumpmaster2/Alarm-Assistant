@@ -103,6 +103,7 @@ from .const import (
     CONF_PERSON_IMAGE,
     CONF_PERSON_PUSH,
     CONF_PERSON_SENSOR,
+    CONF_PERSON_WIFI,
     CONF_PERSONS,
     CONF_PRESENCE_MODE,
     CONF_PRESENCE_STABLE,
@@ -138,6 +139,7 @@ from .const import (
     SENSOR_DEFAULTS,
     SUBENTRY_CAMERA,
     SUBENTRY_GARAGE,
+    SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
 )
 from .engine import hash_code
@@ -449,6 +451,7 @@ class AlarmConfigFlow(ConfigFlow, domain=DOMAIN):
             SUBENTRY_SENSOR: SensorSubentryFlow,
             SUBENTRY_CAMERA: CameraSubentryFlow,
             SUBENTRY_GARAGE: GarageSubentryFlow,
+            SUBENTRY_PERSON: PersonSubentryFlow,
         }
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -777,3 +780,17 @@ class GarageSubentryFlow(_SimpleSubentryFlow):
 
     def _schema(self, values: dict[str, Any]) -> vol.Schema:
         return _garage_schema(self.hass, values)
+
+
+class PersonSubentryFlow(_SimpleSubentryFlow):
+    """Person whose phone's Wi-Fi connection tells whether they are at home."""
+
+    def _schema(self, values: dict[str, Any]) -> vol.Schema:
+        return vol.Schema(
+            {
+                vol.Required(CONF_NAME, default=values.get(CONF_NAME, "")): TextSelector(),
+                vol.Required(CONF_PERSON_WIFI, default=values.get(CONF_PERSON_WIFI)): _entity(
+                    ["sensor"]
+                ),
+            }
+        )

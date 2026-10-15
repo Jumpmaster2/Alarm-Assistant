@@ -4,7 +4,7 @@
 
 Custom Integration für Home Assistant: eine Alarmzentrale mit allem, was sonst in vielen Automationen, Skripten und Helfern steckt. Scharf- und Unscharfschalten (auch automatisch bei Abwesenheit), Ein- und Ausgangsverzögerung, offene Fenster ignorieren, Durchsagen und Alarmton auf Alexa-Geräten, Licht und Rollos bei Alarm, Telefonanruf mit Quittierung über das ha-sip-Add-on, Türschloss, Kamera-Steuerung, Garagen-Kameras, ein Nacht-Türalarm und ein Fenster-offen-Hinweis an der Haustür. Alles wird in der Oberfläche eingestellt, es sind keine eigenen Automationen nötig.
 
-> Status: Version 0.1.0.
+> Status: Version 0.2.0.
 
 ## Funktionsweise
 
@@ -35,7 +35,7 @@ Die Integration arbeitet ereignisgesteuert: Sie reagiert nur auf Zustandswechsel
 
 ### Automatisch scharf
 
-* Anwesenheit über die WLAN-Sensoren der Handys (Name des Heim-WLANs) oder über Personen.
+* Anwesenheit über **Personen** (Unterpunkt "Person"): Jede Person hat den WLAN-Sensor ihres Handys. Ist das Handy mit einem Heim-WLAN verbunden, ist die Person zuhause; dafür gibt es je Person einen Anwesenheitssensor. Alternativ HA-Personen (`person.*`).
 * Ist niemand zuhause (seit einer Mindestzeit), war eine Weile keine Bewegung und ist "Kinder alleine zuhause" aus, kommt eine Vorwarnung. Ist danach immer noch alles erfüllt und keine Bewegung gewesen, wird scharf geschaltet. Nach einem Unscharfschalten wird erst nach einer Wartezeit wieder geprüft.
 * Abschaltbar über den Schalter **Automatisch scharf**.
 
@@ -80,7 +80,7 @@ Die Integration arbeitet ereignisgesteuert: Sie reagiert nur auf Zustandswechsel
 
 * **Einrichtung:** Benachrichtigungen, Alarmzeiten und Code. Danach geht es direkt mit dem ersten Sensor weiter.
 * **Optionen** (Menü): Benachrichtigungen, Alarmzeiten und Code, Bewegungsfilter, Reaktionen bei Alarm, Telefonanruf, Automatisch scharf, Türschloss, Nacht-Türalarm, Kinder und Hinweise.
-* **Unterpunkte:** Sensor, Kamera, Garage (beliebig viele).
+* **Unterpunkte:** Sensor, Person, Kamera, Garage (beliebig viele).
 
 Eingestellte Entitäten oder Dienste, die es nicht gibt, werden nach dem Start unter Reparaturen gemeldet.
 
@@ -92,6 +92,7 @@ Eingestellte Entitäten oder Dienste, die es nicht gibt, werden nach dem Start u
 | Schalter Automatisch scharf, Kinder alleine zuhause | bleiben über Neustarts erhalten |
 | Schalter Nacht-Türalarm, Kamera Live-Ansicht, Garage Automatik | nur wenn eingerichtet |
 | Binärsensoren Bewegung, Kontakte offen, Bewegung unterdrückt, Vorwarnung | |
+| Binärsensor "<Name> zuhause" | je Person, aus dem WLAN des Handys |
 | Sensoren Ursache, Letzter Alarm | |
 | Buttons Anruf quittieren, Testmeldung | Testmeldung schickt nur einen Push mit den offenen Sensoren |
 

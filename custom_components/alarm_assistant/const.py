@@ -22,6 +22,7 @@ PLATFORMS: Final = [
 SUBENTRY_SENSOR: Final = "sensor"
 SUBENTRY_CAMERA: Final = "camera"
 SUBENTRY_GARAGE: Final = "garage"
+SUBENTRY_PERSON: Final = "person"
 STORAGE_VERSION: Final = 1
 EVENT_LOGBOOK: Final = f"{DOMAIN}_logbook"
 
@@ -200,6 +201,9 @@ CAMERA_DEFAULTS: Final[dict[str, object]] = {
     CONF_DETECT_SWITCHES: [],
     CONF_PERSON_PUSH: True,
 }
+
+# ---------- person (subentry)
+CONF_PERSON_WIFI = "wifi_sensor"
 
 # ---------- garage (subentry)
 CONF_GARAGE_PANEL = "garage_panel"

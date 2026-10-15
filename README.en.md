@@ -4,7 +4,7 @@
 
 Custom integration for Home Assistant: an alarm panel with everything that otherwise lives in many automations, scripts and helpers. Arming and disarming (also automatically when everybody is away), entry and exit delay, ignoring open windows, announcements and alarm sound on Alexa devices, lights and covers on alarm, phone call with acknowledgement through the ha-sip add-on, door lock, camera control, garage cameras, a night door alarm and a window open hint at the front door. Everything is set up in the UI, no own automations are needed.
 
-> Status: version 0.1.0.
+> Status: version 0.2.0.
 
 ## How it works
 
@@ -35,7 +35,7 @@ The integration is event driven: it only reacts to state changes of the configur
 
 ### Automatic arming
 
-* Presence by the Wi-Fi sensors of the phones (name of the home network) or by persons.
+* Presence by **persons** (sub item "Person"): every person has the Wi-Fi sensor of their phone. While the phone is connected to a home network the person is at home; each person gets a presence sensor. Alternatively Home Assistant persons (`person.*`).
 * When nobody is at home (for a minimum time), there was no motion for a while and "children alone at home" is off, a warning is sent. If everything is still true afterwards and there was no motion, the panel is armed. After disarming it waits before checking again.
 * Can be switched off with the switch **Automatic arming**.
 
@@ -80,7 +80,7 @@ The integration is event driven: it only reacts to state changes of the configur
 
 * **Setup:** notifications, alarm times and code. It continues directly with the first sensor.
 * **Options** (menu): notifications, alarm times and code, motion filter, reactions on alarm, phone call, automatic arming, door lock, night door alarm, children and hints.
-* **Sub items:** sensor, camera, garage (as many as needed).
+* **Sub items:** sensor, person, camera, garage (as many as needed).
 
 Configured entities or services that do not exist are reported under Repairs after the start.
 
@@ -92,6 +92,7 @@ Configured entities or services that do not exist are reported under Repairs aft
 | Switches automatic arming, children alone at home | kept over restarts |
 | Switches night door alarm, camera live view, garage automatic | only when set up |
 | Binary sensors motion, contacts open, motion suppressed, warning | |
+| Binary sensor "<name> at home" | per person, from the phone's Wi-Fi |
 | Sensors cause, last alarm | |
 | Buttons acknowledge call, test message | the test message only sends a push with the open sensors |
 

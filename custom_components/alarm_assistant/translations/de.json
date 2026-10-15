@@ -179,7 +179,7 @@
         "title": "Automatisch scharf",
         "data": {
           "presence_mode": "Anwesenheit über",
-          "wifi_sensors": "WLAN-Sensoren der Handys",
+          "wifi_sensors": "Weitere WLAN-Sensoren",
           "home_networks": "Heim-WLANs",
           "persons": "Personen",
           "quiet_time": "Keine Bewegung seit",
@@ -188,6 +188,7 @@
           "presence_stable": "Abwesend seit mindestens"
         },
         "data_description": {
+          "wifi_sensors": "Handys ohne Unterpunkt Person. Personen werden als Unterpunkt \"Person\" angelegt.",
           "home_networks": "Namen der WLANs zuhause."
         },
         "description": "Schaltet scharf, wenn niemand zuhause ist und keine Bewegung war; warnt vorher. Nie, wenn Kinder alleine zuhause sind."
@@ -363,6 +364,42 @@
         "reconfigure_successful": "Gespeichert."
       }
     },
+    "person": {
+      "entry_type": "Person",
+      "initiate_flow": {
+        "user": "Person hinzufügen",
+        "reconfigure": "Person ändern"
+      },
+      "step": {
+        "user": {
+          "title": "Person",
+          "data": {
+            "name": "Name",
+            "wifi_sensor": "WLAN-Sensor des Handys"
+          },
+          "data_description": {
+            "wifi_sensor": "Zeigt den Namen des verbundenen WLANs (Companion App)."
+          },
+          "description": "Zuhause, solange das Handy mit einem Heim-WLAN verbunden ist (Optionen: Automatisch scharf). Ergibt einen Anwesenheitssensor und zählt für automatisches Scharfschalten und die Garage."
+        },
+        "reconfigure": {
+          "title": "Person",
+          "data": {
+            "name": "Name",
+            "wifi_sensor": "WLAN-Sensor des Handys"
+          },
+          "data_description": {
+            "wifi_sensor": "Zeigt den Namen des verbundenen WLANs (Companion App)."
+          }
+        }
+      },
+      "error": {
+        "name_required": "Bitte einen Namen eingeben."
+      },
+      "abort": {
+        "reconfigure_successful": "Gespeichert."
+      }
+    },
     "garage": {
       "entry_type": "Garage",
       "initiate_flow": {
@@ -383,7 +420,7 @@
             "garage_tts_repeat": "Wiederholen"
           },
           "data_description": {
-            "garage_networks": "Unscharf, solange ein Handy verbunden ist (nutzt die WLAN-Sensoren des automatischen Scharfschaltens).",
+            "garage_networks": "Unscharf, solange ein Handy verbunden ist (WLAN-Sensoren der Personen und die weiteren).",
             "garage_tts_services": "Benachrichtigungsdienste der Companion App.",
             "garage_tts_text": "Leer = Standardtext."
           }
@@ -401,7 +438,7 @@
             "garage_tts_repeat": "Wiederholen"
           },
           "data_description": {
-            "garage_networks": "Unscharf, solange ein Handy verbunden ist (nutzt die WLAN-Sensoren des automatischen Scharfschaltens).",
+            "garage_networks": "Unscharf, solange ein Handy verbunden ist (WLAN-Sensoren der Personen und die weiteren).",
             "garage_tts_services": "Benachrichtigungsdienste der Companion App.",
             "garage_tts_text": "Leer = Standardtext."
           }
@@ -462,6 +499,9 @@
       },
       "auto_arm_warning": {
         "name": "Vorwarnung automatisch scharf"
+      },
+      "presence": {
+        "name": "{name} zuhause"
       }
     },
     "sensor": {

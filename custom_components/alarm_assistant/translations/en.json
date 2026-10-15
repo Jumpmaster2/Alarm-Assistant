@@ -179,7 +179,7 @@
         "title": "Automatic arming",
         "data": {
           "presence_mode": "Presence by",
-          "wifi_sensors": "Wi-Fi sensors of the phones",
+          "wifi_sensors": "Additional Wi-Fi sensors",
           "home_networks": "Home networks",
           "persons": "Persons",
           "quiet_time": "No motion for",
@@ -188,6 +188,7 @@
           "presence_stable": "Away for at least"
         },
         "data_description": {
+          "wifi_sensors": "Phones without a person sub item. Persons are added as sub item \"Person\".",
           "home_networks": "Names of the networks at home."
         },
         "description": "Arms away when nobody is at home and there was no motion; warns before. Never while children are alone at home."
@@ -363,6 +364,42 @@
         "reconfigure_successful": "Saved."
       }
     },
+    "person": {
+      "entry_type": "Person",
+      "initiate_flow": {
+        "user": "Add person",
+        "reconfigure": "Change person"
+      },
+      "step": {
+        "user": {
+          "title": "Person",
+          "data": {
+            "name": "Name",
+            "wifi_sensor": "Wi-Fi sensor of the phone"
+          },
+          "data_description": {
+            "wifi_sensor": "Shows the name of the connected network (companion app)."
+          },
+          "description": "At home while the phone is connected to a home network (options: automatic arming). Gives a presence sensor and counts for automatic arming and the garage."
+        },
+        "reconfigure": {
+          "title": "Person",
+          "data": {
+            "name": "Name",
+            "wifi_sensor": "Wi-Fi sensor of the phone"
+          },
+          "data_description": {
+            "wifi_sensor": "Shows the name of the connected network (companion app)."
+          }
+        }
+      },
+      "error": {
+        "name_required": "Please enter a name."
+      },
+      "abort": {
+        "reconfigure_successful": "Saved."
+      }
+    },
     "garage": {
       "entry_type": "Garage",
       "initiate_flow": {
@@ -383,7 +420,7 @@
             "garage_tts_repeat": "Repeat"
           },
           "data_description": {
-            "garage_networks": "Disarmed while a phone is connected (uses the Wi-Fi sensors of automatic arming).",
+            "garage_networks": "Disarmed while a phone is connected (Wi-Fi sensors of the persons and the additional ones).",
             "garage_tts_services": "Companion app notify services.",
             "garage_tts_text": "Empty = standard text."
           }
@@ -401,7 +438,7 @@
             "garage_tts_repeat": "Repeat"
           },
           "data_description": {
-            "garage_networks": "Disarmed while a phone is connected (uses the Wi-Fi sensors of automatic arming).",
+            "garage_networks": "Disarmed while a phone is connected (Wi-Fi sensors of the persons and the additional ones).",
             "garage_tts_services": "Companion app notify services.",
             "garage_tts_text": "Empty = standard text."
           }
@@ -462,6 +499,9 @@
       },
       "auto_arm_warning": {
         "name": "Automatic arming warning"
+      },
+      "presence": {
+        "name": "{name} at home"
       }
     },
     "sensor": {

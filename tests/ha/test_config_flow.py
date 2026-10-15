@@ -10,6 +10,7 @@ from custom_components.alarm_assistant.const import (
     DOMAIN,
     SUBENTRY_CAMERA,
     SUBENTRY_GARAGE,
+    SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
 )
 from custom_components.alarm_assistant.engine import hash_code
@@ -240,3 +241,17 @@ async def test_camera_and_garage_subentries(hass: HomeAssistant, base_states) ->
     await hass.async_block_till_done()
     assert hass.states.get("switch.alarm_assistant_garage_automatic") is not None
     assert hass.states.get("switch.alarm_assistant_camera_live_view") is not None
+
+
+async def test_person_subentry(hass: HomeAssistant, base_states) -> None:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_PERSON), context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"name": "Alex", "wifi_sensor": "sensor.phone_a_wifi"}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.alarm_assistant_alex_at_home") is not None

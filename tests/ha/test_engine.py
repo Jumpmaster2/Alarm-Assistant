@@ -9,7 +9,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import issue_registry as ir
 
-from custom_components.alarm_assistant.const import DOMAIN, SUBENTRY_CAMERA, SUBENTRY_GARAGE
+from custom_components.alarm_assistant.const import (
+    DOMAIN,
+    SUBENTRY_CAMERA,
+    SUBENTRY_GARAGE,
+    SUBENTRY_PERSON,
+)
 from custom_components.alarm_assistant.engine import hash_code
 
 from .conftest import (
@@ -501,3 +506,33 @@ async def test_test_button(
     await hass.async_block_till_done(wait_background_tasks=True)
     assert "Kitchen window" in calls["notify"][-1].data["message"]
     assert _state(hass) == "disarmed"
+
+
+def _person(sub_id: str, name: str, sensor: str) -> ConfigSubentryData:
+    return ConfigSubentryData(
+        data={"wifi_sensor": sensor},
+        subentry_id=sub_id,
+        subentry_type=SUBENTRY_PERSON,
+        title=name,
+        unique_id=None,
+    )
+
+
+async def test_persons_by_wifi(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    persons = [_person("p_a", "Alex", WIFI_A), _person("p_b", "Bo", WIFI_B)]
+    await setup_entry(hass, make_entry(extra_subentries=persons, home_networks=[HOME]))
+    alex = "binary_sensor.alarm_assistant_alex_at_home"
+    assert hass.states.get(alex).state == "on"
+    await set_state(hass, WIFI_A, "Mobile")
+    assert hass.states.get(alex).state == "off"
+    assert hass.states.get("binary_sensor.alarm_assistant_bo_at_home").state == "on"
+    await advance(hass, freezer, 20 * 60)
+    assert _state(hass) == "disarmed"
+    # the last person leaves: warning, then armed
+    await set_state(hass, WIFI_B, "unavailable")
+    await advance(hass, freezer, 150)
+    assert any("Nobody" in c.data["message"] for c in calls["notify"])
+    await advance(hass, freezer, 5 * 60 + 30)
+    assert _state(hass) == "armed_away"

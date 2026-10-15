@@ -24,7 +24,7 @@ Alarm Assistant ersetzt eine Alarmzentrale wie Alarmo samt der Automationen und 
 | Skript Alarmton auf Echo-Geräten | Reaktionen: Alarmton und Sprache |
 | Alarmo-Benachrichtigung "Scharfschalten fehlgeschlagen", Automation "offene Fenster melden" | eingebaut (Push an die Handys) |
 | Automation Telefonanruf, Skripte mit ha-sip, Sperr-Helfer | Optionen **Telefonanruf**, Button **Anruf quittieren** |
-| Automation "automatisch scharf bei Abwesenheit" | Optionen **Automatisch scharf**, Schalter |
+| Automation "automatisch scharf bei Abwesenheit" | Optionen **Automatisch scharf**, Schalter, Unterpunkt **Person** je Handy |
 | Automation "Schloss entriegelt -> unscharf", "scharf -> abschließen" | Optionen **Türschloss** |
 | Helfer "Kinder alleine zuhause" + Reset-Automation | Schalter **Kinder alleine zuhause**, Optionen **Kinder und Hinweise** |
 | Kamera-Automationen (Privatsphäre, PTZ, Frigate, Live-Modus, Personenbild) | Unterpunkt **Kamera**, Schalter **Kamera Live-Ansicht** |

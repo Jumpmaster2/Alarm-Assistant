@@ -105,6 +105,7 @@ from .const import (
     CONF_PERSON_IMAGE,
     CONF_PERSON_PUSH,
     CONF_PERSON_SENSOR,
+    CONF_PERSON_WIFI,
     CONF_PERSONS,
     CONF_PRESENCE_MODE,
     CONF_PRESENCE_STABLE,
@@ -142,6 +143,7 @@ from .const import (
     STORAGE_VERSION,
     SUBENTRY_CAMERA,
     SUBENTRY_GARAGE,
+    SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
 )
 from .logic import auto_arm as aa
@@ -208,6 +210,15 @@ class Camera:
 
 
 @dataclass
+class Person:
+    """A person whose phone tells by its Wi-Fi connection whether they are at home."""
+
+    person_id: str
+    name: str
+    wifi_sensor: str
+
+
+@dataclass
 class Garage:
     """Garage cameras (subentry)."""
 
@@ -227,6 +238,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         self.sensors: dict[str, Sensor] = {}
         self.cameras: dict[str, Camera] = {}
         self.garages: dict[str, Garage] = {}
+        self.persons: dict[str, Person] = {}
         # panel
         self.state: str = sm.DISARMED
         self.bypassed: list[str] = []
@@ -290,7 +302,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     def auto_arm_configured(self) -> bool:
         if self.opt(CONF_PRESENCE_MODE) == aa.MODE_PERSONS:
             return bool(self.opt_list(CONF_PERSONS))
-        return bool(self.opt_list(CONF_WIFI_SENSORS)) and bool(self.opt_list(CONF_HOME_NETWORKS))
+        return bool(self.wifi_sensors()) and bool(self.opt_list(CONF_HOME_NETWORKS))
 
     @property
     def night_door_configured(self) -> bool:
@@ -326,6 +338,20 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 self.cameras[sub_id] = Camera(sub_id, sub.title, {**CAMERA_DEFAULTS, **data})
             elif sub.subentry_type == SUBENTRY_GARAGE:
                 self.garages[sub_id] = Garage(sub_id, sub.title, {**GARAGE_DEFAULTS, **data})
+            elif sub.subentry_type == SUBENTRY_PERSON and data.get(CONF_PERSON_WIFI):
+                self.persons[sub_id] = Person(sub_id, sub.title, str(data[CONF_PERSON_WIFI]))
+
+    def wifi_sensors(self) -> list[str]:
+        """Wi-Fi sensors of the persons and the additional ones from the options."""
+        sensors = [p.wifi_sensor for p in self.persons.values()]
+        sensors += [str(v) for v in (self.opt(CONF_WIFI_SENSORS) or []) if str(v).strip()]
+        return list(dict.fromkeys(sensors))
+
+    def person_home(self, person: Person) -> bool:
+        """The phone of the person is connected to a home network."""
+        return not aa.away_by_wifi(
+            [self._value(person.wifi_sensor)], self.opt_list(CONF_HOME_NETWORKS)
+        )
 
     def sensor_by_entity(self, entity_id: str) -> list[Sensor]:
         return [s for s in self.sensors.values() if s.conf.entity_id == entity_id]
@@ -481,7 +507,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         presence = (
             self.opt_list(CONF_PERSONS)
             if self.opt(CONF_PRESENCE_MODE) == aa.MODE_PERSONS
-            else self.opt_list(CONF_WIFI_SENSORS)
+            else self.wifi_sensors()
         )
         self._track(presence, self._on_presence)
         self._track([self.opt(CONF_LOCK)], self._on_lock)
@@ -496,7 +522,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 [c.conf.get(CONF_PERSON_SENSOR) for c in self.cameras.values()], self._on_person
             )
         if self.garages:
-            self._track(self.opt_list(CONF_WIFI_SENSORS), self._on_garage_wifi)
+            self._track(self.wifi_sensors(), self._on_garage_wifi)
             self._track(
                 [m for g in self.garages.values() for m in g.conf.get(CONF_GARAGE_MOTION) or []],
                 self._on_garage_motion,
@@ -1050,7 +1076,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         if self.opt(CONF_PRESENCE_MODE) == aa.MODE_PERSONS:
             return aa.away_by_persons(self._value(p) for p in self.opt_list(CONF_PERSONS))
         return aa.away_by_wifi(
-            (self._value(s) for s in self.opt_list(CONF_WIFI_SENSORS)),
+            (self._value(s) for s in self.wifi_sensors()),
             self.opt_list(CONF_HOME_NETWORKS),
         )
 
@@ -1058,7 +1084,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         entities = (
             self.opt_list(CONF_PERSONS)
             if self.opt(CONF_PRESENCE_MODE) == aa.MODE_PERSONS
-            else self.opt_list(CONF_WIFI_SENSORS)
+            else self.wifi_sensors()
         )
         times = [st.last_changed for e in entities if (st := self._state(e)) is not None]
         return max(times) if times else dt_util.utcnow()
@@ -1072,6 +1098,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         elif not away:
             self.away_since = None
         self._auto_arm_check(now)
+        self.async_update_listeners()
 
     def auto_arm_state(self, now: datetime) -> aa.AutoArmState:
         def seconds(since: datetime | None) -> float | None:
@@ -1439,7 +1466,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     # ------------------------------------------------------------------ garage
 
     def _garage_connections(self) -> list[str | None]:
-        return [self._value(s) for s in self.opt_list(CONF_WIFI_SENSORS)]
+        return [self._value(s) for s in self.wifi_sensors()]
 
     def _garage_check(self, garage: Garage, now: datetime, startup: bool = False) -> None:
         panel = garage.conf.get(CONF_GARAGE_PANEL)
