@@ -560,3 +560,48 @@ async def test_night_door_tag_off_announcement(
         "volume_level": 0.3,
     }
     assert calls["speak"][-1].data["message"] == "Alarm is disarmed"
+
+
+async def test_test_alarm_with_reactions_switched_off(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    options = {**REACTIONS, "call_addon": "sip_addon", "call_targets": ["sip:a@x", "sip:b@x"]}
+    entry = make_entry(**options)
+    await setup_entry(hass, entry)
+    engine = entry.runtime_data
+    disabled = ["push:notify.pushover", "lights", "covers", "lock", "call:sip:b@x", "sound"]
+    assert engine.arm_test(disabled).ok
+    await hass.async_block_till_done(wait_background_tasks=True)
+    panel = hass.states.get(PANEL)
+    assert panel.state == "armed_away"
+    assert panel.attributes["test_mode"] is True
+    assert calls["lock"] == []
+    assert engine.simulate_trigger()
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert _state(hass) == "triggered"
+    assert calls["pushover"] == []
+    assert calls["turn_on"] == []
+    assert calls["close_cover"] == []
+    assert calls["sound"] == []
+    assert [c.data["input"]["number"] for c in calls["stdin"]] == ["sip:a@x"]
+    assert calls["notify"][-1].data["title"].startswith("[TEST]")
+    assert calls["send_message"][-1].data["message"].startswith("Attention, this is only a test.")
+    assert calls["speak"][-1].data["message"].startswith("Attention, this is only a test.")
+    assert hass.states.get(CAUSE).state == "Test trigger"
+    # the test survives a reload and ends with disarming
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get(PANEL).attributes["test_mode"] is True
+    await _disarm(hass)
+    assert hass.states.get(PANEL).attributes["test_mode"] is False
+    assert entry.runtime_data.test_last == sorted(disabled)
+
+
+async def test_simulate_only_in_test_mode(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    await _arm(hass)
+    assert not entry.runtime_data.simulate_trigger()
+    assert _state(hass) == "armed_away"

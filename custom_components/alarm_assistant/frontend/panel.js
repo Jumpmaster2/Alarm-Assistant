@@ -9,6 +9,7 @@ const UI = {
     title: "Alarm Assistant",
     tabs: {
       overview: "Übersicht",
+      test: "Testalarm",
       sensors: "Sensoren",
       alarm: "Alarm",
       reactions: "Bei Alarm",
@@ -119,11 +120,39 @@ const UI = {
     up: "nach oben",
     down: "nach unten",
     addValue: "Wert eingeben und Enter",
+    testTitle: "Testalarm",
+    testDesc:
+      "Schaltet die Anlage testweise scharf. Löst danach ein Sensor aus (oder du simulierst die Auslösung), läuft alles wie bei einem echten Alarm, aber nur mit den hier angehakten Reaktionen. Push-Meldungen beginnen mit [TEST], Durchsagen und Anrufe mit „Achtung, dies ist nur ein Test“. Unscharf schalten beendet den Test.",
+    testWhat: "Was soll beim Test passieren?",
+    testArm: "Testweise scharf schalten",
+    testTrigger: "Auslösung simulieren",
+    testRunning: "Testalarm läuft",
+    testNotDisarmed: "Die Anlage ist scharf (kein Test). Für einen Test erst unscharf schalten.",
+    testOff: "Aus beim Test",
+    allOn: "Alles an",
+    allOff: "Alles aus",
+    testBadge: "TEST",
+    testGroups: {
+      push: "Push-Meldungen",
+      call: "Telefonanruf",
+      announce: "Durchsage",
+      volume: "Lautstärke hoch",
+      sound: "Alarmton",
+      speak: "Gesprochener Text",
+      lights: "Licht und Schalter",
+      covers: "Rollos schließen",
+      lock: "Tür abschließen",
+      arm_cover: "Rollo bei offenem bedingtem Kontakt",
+      camera: "Kamera (Privatsphäre, Preset, Personenbild)",
+      armed_on: "An, solange scharf",
+    },
+    errorsTest: { arm_failed: "Scharfschalten nicht möglich, offen:", not_disarmed: "Die Anlage ist nicht unscharf." },
   },
   en: {
     title: "Alarm Assistant",
     tabs: {
       overview: "Overview",
+      test: "Test alarm",
       sensors: "Sensors",
       alarm: "Alarm",
       reactions: "On alarm",
@@ -234,11 +263,39 @@ const UI = {
     up: "up",
     down: "down",
     addValue: "Type a value and press Enter",
+    testTitle: "Test alarm",
+    testDesc:
+      "Arms the panel as a test. When a sensor trips afterwards (or you simulate the trigger), everything runs like a real alarm, but only with the reactions ticked here. Push messages start with [TEST], announcements and calls with \"Attention, this is only a test\". Disarming ends the test.",
+    testWhat: "What should happen in the test?",
+    testArm: "Arm as a test",
+    testTrigger: "Simulate trigger",
+    testRunning: "Test alarm running",
+    testNotDisarmed: "The panel is armed (no test). Disarm it first for a test.",
+    testOff: "Off in the test",
+    allOn: "All on",
+    allOff: "All off",
+    testBadge: "TEST",
+    testGroups: {
+      push: "Push messages",
+      call: "Phone call",
+      announce: "Announcement",
+      volume: "Volume up",
+      sound: "Alarm sound",
+      speak: "Spoken text",
+      lights: "Lights and switches",
+      covers: "Close covers",
+      lock: "Lock the door",
+      arm_cover: "Cover at an open conditional contact",
+      camera: "Camera (privacy, preset, person image)",
+      armed_on: "On while armed",
+    },
+    errorsTest: { arm_failed: "Cannot arm, open:", not_disarmed: "The panel is not disarmed." },
   },
 };
 
 const TABS = [
   ["overview", "mdi:view-dashboard-outline"],
+  ["test", "mdi:test-tube"],
   ["sensors", "mdi:leak"],
   ["alarm", "mdi:shield-lock-outline"],
   ["reactions", "mdi:alarm-light-outline"],
@@ -507,6 +564,7 @@ class AlarmAssistantPanel extends HTMLElement {
     this._cfg = null;
     this._error = null;
     this._sig = "";
+    this._testDisabled = null;
     this.attachShadow({ mode: "open" });
     this.shadowRoot.addEventListener("click", (ev) => this._onClick(ev));
     this.shadowRoot.addEventListener("input", (ev) => this._onInput(ev));
@@ -558,6 +616,7 @@ class AlarmAssistantPanel extends HTMLElement {
   async _load() {
     try {
       this._cfg = await this._hass.callWS({ type: "alarm_assistant/config" });
+      if (this._testDisabled === null) this._testDisabled = new Set(this._cfg.test_last || []);
       this._error = null;
     } catch (err) {
       this._error = err.message || String(err);
@@ -611,6 +670,7 @@ class AlarmAssistantPanel extends HTMLElement {
     if (this._edit) return this._editor();
     if (this._tab === "overview") return this._overview();
     if (this._tab === "sensors") return this._sensorsTab();
+    if (this._tab === "test") return this._testTab();
     return (SETTINGS[this._tab] || []).map((card) => this._settingsCard(card)).join("");
   }
 
@@ -656,7 +716,9 @@ class AlarmAssistantPanel extends HTMLElement {
     return ids
       .map((id) => {
         const st = this._state(id);
-        return st ? `${id}=${st.state}|${JSON.stringify(st.attributes.open_sensors || "")}|${st.attributes.arms_at || ""}` : `${id}=-`;
+        return st
+          ? `${id}=${st.state}|${JSON.stringify(st.attributes.open_sensors || "")}|${st.attributes.arms_at || ""}|${st.attributes.test_mode || ""}`
+          : `${id}=-`;
       })
       .join(";");
   }
@@ -666,9 +728,9 @@ class AlarmAssistantPanel extends HTMLElement {
     if (sig === this._sig) return;
     this._sig = sig;
     if (this._edit) return;
-    if (this._tab === "overview") {
+    if (this._tab === "overview" || this._tab === "test") {
       const content = this.shadowRoot.querySelector(".content");
-      if (content) content.innerHTML = this._overview();
+      if (content) content.innerHTML = this._tab === "overview" ? this._overview() : this._testTab();
       return;
     }
     for (const el of this.shadowRoot.querySelectorAll("[data-live]")) {
@@ -710,7 +772,7 @@ class AlarmAssistantPanel extends HTMLElement {
         <div class="status-main">
           <ha-icon icon="${icon}" style="color:${color}" class="${state === "triggered" ? "blink" : ""}"></ha-icon>
           <div>
-            <div class="status-text" style="color:${color}">${esc(ui.states[state] || state)}</div>
+            <div class="status-text" style="color:${color}">${esc(ui.states[state] || state)}${attrs.test_mode ? ` <span class="badge test">${esc(ui.testBadge)}</span>` : ""}</div>
             <div class="muted">${open.length ? `${esc(ui.openContacts)}: ${esc(open.join(", "))}` : esc(ui.noneOpen)}</div>
             ${bypassed.length ? `<div class="muted">${esc(ui.ignored)}: ${esc(bypassed.join(", "))}</div>` : ""}
           </div>
@@ -807,6 +869,87 @@ class AlarmAssistantPanel extends HTMLElement {
     return `<div class="grid">${status}${switches}${presence}${info}${glance}</div>`;
   }
 
+  // ------------------------------------------------------------------ test alarm
+
+  _testGroups() {
+    const o = this._cfg.options;
+    const pretty = (svc) =>
+      svc
+        .replace(/^notify\./, "")
+        .replace(/^mobile_app_/, "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    const entityItems = (list) => (list || []).map((id) => [id, this._name(id)]);
+    const devices = new Map((this._cfg.alexa_devices || []).map((d) => [d.id, d.name]));
+    const push = [...new Set([...(o.notify_services || []), ...(o.notify_alarm_services || []), ...(o.notify_admin_services || [])])];
+    const armCovers = [...new Set(this._subs("sensor").filter((s) => s.data.arm_cover && s.data.only_when_unavailable).map((s) => s.data.arm_cover))];
+    const groups = [
+      ["push", "mdi:cellphone-message", push.map((s) => [s, pretty(s)])],
+      ["call", "mdi:phone-alert", o.call_addon ? (o.call_targets || []).map((t, i) => [t, `${i + 1}. ${t}`]) : []],
+      ["announce", "mdi:bullhorn-outline", entityItems(o.announce_entities)],
+      ["volume", "mdi:volume-high", entityItems(o.volume_players)],
+      ["sound", "mdi:alarm-bell", (o.sound_devices || []).map((id) => [id, devices.get(id) || id])],
+      ["speak", "mdi:account-voice", (o.speak_services || []).map((s) => [s, pretty(s)])],
+      ["lights", "mdi:lightbulb-group-outline", entityItems(o.turn_on_entities)],
+      ["covers", "mdi:window-shutter", entityItems(o.close_covers)],
+      ["lock", "mdi:lock-outline", o.lock && o.lock_on_arm ? entityItems([o.lock]) : []],
+      ["arm_cover", "mdi:window-shutter-alert", entityItems(armCovers)],
+      ["camera", "mdi:cctv", this._subs("camera").map((c) => [c.id, c.title])],
+      ["armed_on", "mdi:toggle-switch-outline", entityItems(o.armed_on_entities)],
+    ];
+    return groups.filter(([, , items]) => items.length);
+  }
+
+  _testTab() {
+    const ui = this.ui;
+    const panel = this._state(this._cfg.entities.panel);
+    const state = panel?.state || "unavailable";
+    const attrs = panel?.attributes || {};
+    const disabled = attrs.test_mode ? new Set(attrs.test_disabled || []) : this._testDisabled;
+    const locked = state !== "disarmed";
+    const groups = this._testGroups();
+    let status;
+    if (attrs.test_mode) {
+      const [icon, color] = STATE_ICONS[state] || ["mdi:shield-off-outline", "var(--disabled-text-color)"];
+      status = `<div class="card test-running">
+        <div class="status-main"><ha-icon icon="${icon}" style="color:${color}"></ha-icon>
+          <div><div class="status-text">${esc(ui.testRunning)}</div><div class="muted">${esc(ui.states[state] || state)}</div></div></div>
+        <div class="status-actions">
+          ${["armed_away", "pending"].includes(state) ? `<button class="btn primary danger" data-action="test-trigger"><ha-icon icon="mdi:bell-ring-outline"></ha-icon>${esc(ui.testTrigger)}</button>` : ""}
+          <button class="btn primary" data-action="disarm"><ha-icon icon="mdi:shield-off-outline"></ha-icon>${esc(ui.disarm)}</button>
+        </div></div>`;
+    } else if (locked) {
+      status = `<div class="card"><div class="row warn-row"><ha-icon icon="mdi:alert-outline"></ha-icon><span>${esc(ui.testNotDisarmed)}</span></div></div>`;
+    } else {
+      status = "";
+    }
+    const groupHtml = groups
+      .map(([key, icon, items]) => {
+        const groupOn = !disabled.has(key);
+        const rows = items
+          .map(([item, label]) => {
+            const on = groupOn && !disabled.has(`${key}:${item}`);
+            return `<label class="check ${groupOn ? "" : "dim"}"><input type="checkbox" data-test-key="${esc(`${key}:${item}`)}" ${on ? "checked" : ""} ${groupOn && !locked ? "" : "disabled"}>${esc(label)}</label>`;
+          })
+          .join("");
+        return `<div class="test-group">
+          <label class="toggle-row"><span class="lbl"><ha-icon icon="${icon}"></ha-icon> ${esc(ui.testGroups[key] || key)}</span>
+            <input type="checkbox" class="switch-input" data-test-key="${esc(key)}" ${groupOn ? "checked" : ""} ${locked ? "disabled" : ""}><span class="switch ${groupOn ? "on" : ""}"></span></label>
+          ${items.length > 1 || key === "push" || key === "call" ? `<div class="checks test-items">${rows}</div>` : ""}
+        </div>`;
+      })
+      .join("");
+    return `${status}<div class="card" data-card="test">
+      <h2><ha-icon icon="mdi:test-tube"></ha-icon>${esc(ui.testTitle)}</h2>
+      <p class="desc">${esc(ui.testDesc)}</p>
+      <div class="test-head"><span class="lbl">${esc(ui.testWhat)}</span>
+        ${locked ? "" : `<span><button class="btn" data-action="test-all-on">${esc(ui.allOn)}</button> <button class="btn" data-action="test-all-off">${esc(ui.allOff)}</button></span>`}</div>
+      <div class="test-groups">${groupHtml}</div>
+      <div class="actions"><span class="msg"></span>
+        <button class="btn primary danger" data-action="test-arm" ${locked ? "disabled" : ""}><ha-icon icon="mdi:shield-lock"></ha-icon>${esc(ui.testArm)}</button></div>
+    </div>`;
+  }
+
   // ------------------------------------------------------------------ sensors
 
   _sensorsTab() {
@@ -824,19 +967,19 @@ class AlarmAssistantPanel extends HTMLElement {
         ].filter(Boolean);
         const [stText, stCls] = this._liveValue("sensor", d.entity);
         return `<tr data-edit="sensor" data-id="${esc(s.id)}">
-          <td><ha-icon icon="${TYPE_ICONS[d.type] || TYPE_ICONS.other}"></ha-icon></td>
-          <td><div>${esc(s.title)}</div><div class="muted small">${esc(d.entity)}</div></td>
+          <td class="c-icon"><ha-icon icon="${TYPE_ICONS[d.type] || TYPE_ICONS.other}"></ha-icon></td>
+          <td class="c-name"><div>${esc(s.title)}</div><div class="muted small entity-id">${esc(d.entity)}</div></td>
           <td class="hide-narrow">${esc(ui.types[d.type] || d.type)}</td>
           <td class="hide-narrow">${badges.map((b) => `<span class="badge">${esc(b)}</span>`).join("")}</td>
-          <td><span class="pill ${stCls}" data-live="sensor|${esc(d.entity)}">${esc(stText)}</span></td>
-          <td><ha-icon icon="mdi:pencil-outline" class="muted"></ha-icon></td>
+          <td class="c-state"><span class="pill ${stCls}" data-live="sensor|${esc(d.entity)}">${esc(stText)}</span></td>
+          <td class="c-edit hide-narrow"><ha-icon icon="mdi:pencil-outline" class="muted"></ha-icon></td>
         </tr>`;
       })
       .join("");
     return `<div class="card">
       <h2><ha-icon icon="mdi:leak"></ha-icon>${esc(title)}</h2><p class="desc">${esc(desc)}</p>
       ${sensors.length
-        ? `<table><thead><tr><th></th><th>${esc(ui.columns.name)}</th><th class="hide-narrow">${esc(ui.columns.type)}</th><th class="hide-narrow">${esc(ui.columns.behaviour)}</th><th>${esc(ui.columns.state)}</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+        ? `<div class="table-wrap"><table><thead><tr><th class="c-icon"></th><th class="c-name">${esc(ui.columns.name)}</th><th class="hide-narrow c-type">${esc(ui.columns.type)}</th><th class="hide-narrow c-beh">${esc(ui.columns.behaviour)}</th><th class="c-state">${esc(ui.columns.state)}</th><th class="c-edit hide-narrow"></th></tr></thead><tbody>${rows}</tbody></table></div>`
         : `<div class="muted">${esc(ui.noItems)}</div>`}
       <div class="actions"><button class="btn primary" data-new="sensor"><ha-icon icon="mdi:plus"></ha-icon>${esc(ui.add)}</button></div>
     </div>`;
@@ -1045,6 +1188,14 @@ class AlarmAssistantPanel extends HTMLElement {
 
   _onInput(ev, isChange = false) {
     const el = ev.target;
+    if (el.dataset.testKey !== undefined) {
+      if (!isChange) return;
+      const key = el.dataset.testKey;
+      if (el.checked) this._testDisabled.delete(key);
+      else this._testDisabled.add(key);
+      this._rerenderContent();
+      return;
+    }
     if (el.dataset.add) {
       if (isChange) this._addListValue(el);
       return;
@@ -1186,6 +1337,33 @@ class AlarmAssistantPanel extends HTMLElement {
         await this._hass.callService("button", "press", { entity_id: this._cfg.entities.test });
         this._toast(this.ui.testSent);
         break;
+      case "test-all-on":
+        this._testDisabled = new Set();
+        this._rerenderContent();
+        break;
+      case "test-all-off":
+        this._testDisabled = new Set(this._testGroups().map(([key]) => key));
+        this._rerenderContent();
+        break;
+      case "test-arm":
+        el.disabled = true;
+        try {
+          await this._ws({ type: "alarm_assistant/test_arm", disabled: [...this._testDisabled] });
+          this._cfg.test_last = [...this._testDisabled];
+        } catch (err) {
+          el.disabled = false;
+          const code = err.code || "";
+          const prefix = this.ui.errorsTest[code];
+          this._cardMessage(el, prefix ? `${prefix} ${err.message}` : err.message || String(err), true);
+        }
+        break;
+      case "test-trigger":
+        try {
+          await this._ws({ type: "alarm_assistant/test_trigger" });
+        } catch (err) {
+          this._toast(err.message || String(err), true);
+        }
+        break;
       case "close-edit":
         this._edit = null;
         this._rerenderContent();
@@ -1295,7 +1473,7 @@ class AlarmAssistantPanel extends HTMLElement {
 }
 
 const STYLE = `
-:host { display:block; min-height:100vh; background:var(--primary-background-color); color:var(--primary-text-color); font-family:var(--paper-font-body1_-_font-family, Roboto, sans-serif); }
+:host { display:block; min-height:100vh; overflow-x:hidden; background:var(--primary-background-color); color:var(--primary-text-color); font-family:var(--paper-font-body1_-_font-family, Roboto, sans-serif); }
 * { box-sizing:border-box; }
 .toolbar { display:flex; align-items:center; height:56px; padding:0 12px; background:var(--app-header-background-color, var(--primary-color)); color:var(--app-header-text-color, #fff); gap:8px; }
 .title { display:flex; align-items:center; gap:10px; font-size:20px; font-weight:400; }
@@ -1306,7 +1484,7 @@ const STYLE = `
 .content { padding:16px; max-width:1200px; margin:0 auto; }
 .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:16px; align-items:start; }
 .content > .card { margin-bottom:16px; }
-.card { background:var(--ha-card-background, var(--card-background-color, #fff)); border-radius:var(--ha-card-border-radius, 12px); border:1px solid var(--divider-color, #e0e0e0); padding:16px; box-shadow:var(--ha-card-box-shadow, none); }
+.card { min-width:0; overflow-wrap:anywhere; background:var(--ha-card-background, var(--card-background-color, #fff)); border-radius:var(--ha-card-border-radius, 12px); border:1px solid var(--divider-color, #e0e0e0); padding:16px; box-shadow:var(--ha-card-box-shadow, none); }
 .card.error { color:var(--error-color); }
 h2 { display:flex; align-items:center; gap:10px; margin:0 0 4px; font-size:18px; font-weight:500; }
 h2 ha-icon { color:var(--state-icon-color, var(--primary-color)); }
@@ -1331,7 +1509,7 @@ input:focus, select:focus, textarea:focus { outline:2px solid var(--primary-colo
 .switch.on { background:var(--switch-checked-track-color, var(--primary-color)); }
 .switch.on::after { left:18px; }
 .chips { display:flex; flex-wrap:wrap; gap:6px; }
-.chip { display:inline-flex; align-items:center; gap:4px; background:var(--secondary-background-color, #eee); border-radius:16px; padding:3px 4px 3px 10px; font-size:13px; }
+.chip { max-width:100%; overflow-wrap:anywhere; display:inline-flex; align-items:center; gap:4px; background:var(--secondary-background-color, #eee); border-radius:16px; padding:3px 4px 3px 10px; font-size:13px; }
 .chip b { margin-right:2px; }
 .chip-btn { border:none; background:none; cursor:pointer; color:var(--secondary-text-color); padding:0 4px; font-size:12px; }
 .checks { display:flex; flex-direction:column; gap:4px; }
@@ -1364,6 +1542,7 @@ input:focus, select:focus, textarea:focus { outline:2px solid var(--primary-colo
 .rows { display:flex; flex-direction:column; }
 .row { display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid var(--divider-color); font:inherit; font-size:14px; color:var(--primary-text-color); background:none; border-left:none; border-right:none; border-top:none; text-align:left; width:100%; }
 .row:last-child { border-bottom:none; }
+.row > span { min-width:0; overflow-wrap:anywhere; }
 .row.link { cursor:pointer; }
 .row.link:hover, tbody tr:hover { background:var(--secondary-background-color, #f5f5f5); }
 .warn-row ha-icon { color:var(--warning-color, #ffa600); }
@@ -1374,15 +1553,35 @@ input:focus, select:focus, textarea:focus { outline:2px solid var(--primary-colo
 .pill.warn { background:rgba(255,166,0,.18); color:var(--warning-color, #b26a00); }
 .pill.muted { color:var(--secondary-text-color); }
 .badge { display:inline-block; font-size:11px; border:1px solid var(--divider-color); border-radius:10px; padding:1px 8px; margin:1px 4px 1px 0; color:var(--secondary-text-color); }
-table { width:100%; border-collapse:collapse; font-size:14px; }
+.table-wrap { width:100%; overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:14px; table-layout:fixed; }
+th.c-icon { width:40px; } th.c-type { width:110px; } th.c-beh { width:34%; } th.c-state { width:92px; } th.c-edit { width:32px; }
+td.c-name div { overflow-wrap:anywhere; }
 th { text-align:left; font-weight:500; color:var(--secondary-text-color); padding:6px 8px; border-bottom:1px solid var(--divider-color); }
 td { padding:8px; border-bottom:1px solid var(--divider-color); vertical-align:middle; }
 tbody tr { cursor:pointer; }
 details { margin-top:16px; }
 summary { cursor:pointer; font-weight:500; color:var(--primary-color); }
+.test-groups { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; margin-top:8px; }
+.test-group { border:1px solid var(--divider-color); border-radius:10px; padding:10px 12px; }
+.test-group > .toggle-row { display:flex; cursor:pointer; }
+.test-group .toggle-row > span.lbl { display:flex; flex-direction:row; align-items:center; gap:8px; text-align:left; }
+.test-group .lbl ha-icon { --mdc-icon-size:20px; color:var(--state-icon-color, var(--primary-color)); }
+.test-items { margin-top:8px; padding-left:4px; font-size:14px; }
+.check.dim { opacity:.45; }
+.test-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.test-running { border-color:var(--warning-color, #ffa600); margin-bottom:16px; display:flex; flex-direction:column; gap:12px; }
+.badge.test { background:var(--warning-color, #ffa600); color:#000; border:none; font-size:12px; vertical-align:middle; }
 .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--primary-text-color); color:var(--primary-background-color); padding:10px 18px; border-radius:8px; z-index:10; }
 .toast.bad { background:var(--error-color, #db4437); color:#fff; }
-@media (max-width: 700px) { .hide-narrow { display:none; } .content { padding:8px; } .grid { grid-template-columns:1fr; } .tab span { display:none; } }
+@media (max-width: 700px) {
+  .hide-narrow { display:none; } .content { padding:8px; } .grid { grid-template-columns:1fr; }
+  .tab span { display:none; } .tab.active span { display:inline; } .tab { padding:10px 12px; }
+  .fields, .test-groups { grid-template-columns:1fr; }
+  th.c-icon { width:32px; } th.c-state { width:80px; }
+  td { padding:8px 4px; } .entity-id { font-size:11px; }
+  .card { padding:12px; }
+}
 `;
 
 customElements.define("alarm-assistant-panel", AlarmAssistantPanel);

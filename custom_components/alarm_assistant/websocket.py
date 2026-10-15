@@ -60,6 +60,8 @@ def async_register_websocket(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_save_options)
     websocket_api.async_register_command(hass, ws_save_subentry)
     websocket_api.async_register_command(hass, ws_delete_subentry)
+    websocket_api.async_register_command(hass, ws_test_arm)
+    websocket_api.async_register_command(hass, ws_test_trigger)
 
 
 def _entry(hass: HomeAssistant) -> ConfigEntry | None:
@@ -121,6 +123,7 @@ def config_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         ),
         "alexa_devices": sorted(devices, key=lambda d: d["name"].lower()),
         "missing": list(getattr(engine, "missing", []) or []),
+        "test_last": list(getattr(engine, "test_last", []) or []),
     }
 
 
@@ -253,3 +256,44 @@ def ws_delete_subentry(
         return
     hass.config_entries.async_remove_subentry(entry, msg["subentry_id"])
     connection.send_result(msg["id"], config_payload(hass, entry))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/test_arm",
+        vol.Optional("disabled", default=[]): [str],
+    }
+)
+@websocket_api.require_admin
+@callback
+def ws_test_arm(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Arm as a test alarm with some reactions switched off."""
+    entry = _entry(hass)
+    engine = getattr(entry, "runtime_data", None) if entry else None
+    if engine is None:
+        connection.send_error(msg["id"], "not_found", "Alarm Assistant is not set up")
+        return
+    if engine.state != "disarmed":
+        connection.send_error(msg["id"], "not_disarmed", "not_disarmed")
+        return
+    check = engine.arm_test(msg["disabled"])
+    if not check.ok:
+        names = ", ".join(engine.sensor_name(e) for e in check.blocking)
+        connection.send_error(msg["id"], "arm_failed", names)
+        return
+    connection.send_result(msg["id"], {"state": engine.state})
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/test_trigger"})
+@websocket_api.require_admin
+@callback
+def ws_test_trigger(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
+) -> None:
+    """Trigger the running test alarm without a sensor."""
+    entry = _entry(hass)
+    engine = getattr(entry, "runtime_data", None) if entry else None
+    if engine is None or not engine.simulate_trigger():
+        connection.send_error(msg["id"], "not_test", "not_test")
+        return
+    connection.send_result(msg["id"], {"state": engine.state})

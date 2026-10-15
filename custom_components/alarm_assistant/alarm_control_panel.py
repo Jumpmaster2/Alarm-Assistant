@@ -62,6 +62,8 @@ class AlarmPanel(AlarmEntity, AlarmControlPanelEntity):
             if engine.last_triggered
             else None,
             "kids_home": engine.kids_home,
+            "test_mode": engine.test_mode,
+            "test_disabled": sorted(engine.test) if engine.test is not None else [],
         }
 
     def _check(self, code: str | None, arming: bool) -> None:

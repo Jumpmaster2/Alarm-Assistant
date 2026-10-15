@@ -69,6 +69,13 @@ _TEXTS: dict[str, dict[str, str]] = {
         "de": "Testmeldung. Offene Sensoren: {sensors}.",
         "en": "Test message. Open sensors: {sensors}.",
     },
+    # test alarm
+    "test_prefix": {"de": "[TEST] ", "en": "[TEST] "},
+    "test_spoken": {
+        "de": "Achtung, dies ist nur ein Test. ",
+        "en": "Attention, this is only a test. ",
+    },
+    "test_cause": {"de": "Testauslösung", "en": "Test trigger"},
     # call
     "call_message": {
         "de": "Achtung die Alarmanlage hat ausgelöst. Einbruchalarm. Ursache: {cause}.",

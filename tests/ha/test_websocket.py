@@ -109,3 +109,23 @@ async def test_subentries(hass: HomeAssistant, base_states, hass_ws_client) -> N
     )
     assert (await client.receive_json())["success"]
     assert sub_id not in entry.subentries
+
+
+async def test_test_arm_and_trigger(hass: HomeAssistant, base_states, hass_ws_client) -> None:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "alarm_assistant/test_trigger"})
+    assert not (await client.receive_json())["success"]
+    await client.send_json_auto_id(
+        {"type": "alarm_assistant/test_arm", "disabled": ["lights", "push:notify.phone"]}
+    )
+    msg = await client.receive_json()
+    assert msg["success"], msg
+    assert entry.runtime_data.test == {"lights", "push:notify.phone"}
+    await client.send_json_auto_id({"type": "alarm_assistant/test_trigger"})
+    msg = await client.receive_json()
+    assert msg["success"]
+    assert msg["result"]["state"] == "triggered"
+    await client.send_json_auto_id({"type": "alarm_assistant/config"})
+    assert (await client.receive_json())["result"]["test_last"] == ["lights", "push:notify.phone"]
