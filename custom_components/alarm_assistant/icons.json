@@ -1,0 +1,23 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "motion_suppressed": { "default": "mdi:robot-vacuum-alert", "state": { "off": "mdi:motion-sensor" } },
+      "auto_arm_warning": { "default": "mdi:shield-alert", "state": { "off": "mdi:shield-outline" } }
+    },
+    "sensor": {
+      "cause": { "default": "mdi:alarm-light" },
+      "last_triggered": { "default": "mdi:clock-alert-outline" }
+    },
+    "switch": {
+      "auto_arm": { "default": "mdi:shield-home", "state": { "off": "mdi:shield-off-outline" } },
+      "kids_home": { "default": "mdi:human-child", "state": { "off": "mdi:home-outline" } },
+      "night_door": { "default": "mdi:door-closed-lock", "state": { "off": "mdi:door" } },
+      "live_mode": { "default": "mdi:cctv", "state": { "off": "mdi:cctv-off" } },
+      "garage_auto": { "default": "mdi:garage-lock", "state": { "off": "mdi:garage-open" } }
+    },
+    "button": {
+      "call_acknowledge": { "default": "mdi:phone-check" },
+      "test": { "default": "mdi:message-alert-outline" }
+    }
+  }
+}

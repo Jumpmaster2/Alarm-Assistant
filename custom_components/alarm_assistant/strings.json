@@ -1,0 +1,515 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Alarm Assistant",
+        "data": {
+          "language": "Language of messages",
+          "notify_services": "Push notifications",
+          "notify_alarm_services": "Additional alarm notifications",
+          "notify_admin_services": "Technical notifications"
+        },
+        "data_description": {
+          "language": "Auto follows Home Assistant.",
+          "notify_services": "Phones that get all messages (alarm, arming, warnings).",
+          "notify_alarm_services": "Only get the alarm itself (e.g. Pushover).",
+          "notify_admin_services": "Faults of the motion filter and suppressed motion."
+        },
+        "description": "Who gets which messages. Sensors, cameras and garages are added afterwards, everything else is in the options."
+      },
+      "alarm": {
+        "title": "Alarm",
+        "data": {
+          "entry_delay": "Entry delay",
+          "exit_delay": "Exit delay",
+          "trigger_time": "Trigger time",
+          "disarm_after_trigger": "Disarm after the trigger time",
+          "code_arm_required": "Code also for arming",
+          "armed_on_entities": "On while armed",
+          "code": "Code (optional)"
+        },
+        "data_description": {
+          "entry_delay": "Time to disarm after a delayed sensor (door, motion) tripped.",
+          "exit_delay": "0 = armed immediately.",
+          "trigger_time": "How long the alarm stays triggered.",
+          "disarm_after_trigger": "Off: armed again afterwards.",
+          "armed_on_entities": "Turned on when armed, off when disarmed (e.g. camera motion detection).",
+          "code": "Needed to disarm. Leave empty for no code."
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Settings",
+        "menu_options": {
+          "general": "Notifications",
+          "alarm": "Alarm times and code",
+          "motion": "Motion filter",
+          "reactions": "Reactions on alarm",
+          "call": "Phone call",
+          "auto_arm": "Automatic arming",
+          "lock": "Door lock",
+          "night_door": "Night door alarm",
+          "extras": "Children and hints"
+        }
+      },
+      "general": {
+        "title": "Notifications",
+        "data": {
+          "language": "Language of messages",
+          "notify_services": "Push notifications",
+          "notify_alarm_services": "Additional alarm notifications",
+          "notify_admin_services": "Technical notifications"
+        },
+        "data_description": {
+          "language": "Auto follows Home Assistant.",
+          "notify_services": "Phones that get all messages (alarm, arming, warnings).",
+          "notify_alarm_services": "Only get the alarm itself (e.g. Pushover).",
+          "notify_admin_services": "Faults of the motion filter and suppressed motion."
+        }
+      },
+      "alarm": {
+        "title": "Alarm times and code",
+        "data": {
+          "entry_delay": "Entry delay",
+          "exit_delay": "Exit delay",
+          "trigger_time": "Trigger time",
+          "disarm_after_trigger": "Disarm after the trigger time",
+          "code_arm_required": "Code also for arming",
+          "armed_on_entities": "On while armed",
+          "new_code": "New code",
+          "remove_code": "Remove code"
+        },
+        "data_description": {
+          "entry_delay": "Time to disarm after a delayed sensor (door, motion) tripped.",
+          "exit_delay": "0 = armed immediately.",
+          "trigger_time": "How long the alarm stays triggered.",
+          "disarm_after_trigger": "Off: armed again afterwards.",
+          "armed_on_entities": "Turned on when armed, off when disarmed (e.g. camera motion detection).",
+          "new_code": "Leave empty to keep the current code."
+        },
+        "description": "Code set: {code}"
+      },
+      "motion": {
+        "title": "Motion filter",
+        "data": {
+          "vacuum": "Vacuum",
+          "vacuum_charging": "Vacuum charging sensor",
+          "dock_grace": "Grace time after docking",
+          "fault_sensor": "Fault sensor",
+          "notify_suppressed_motion": "Report suppressed motion"
+        },
+        "data_description": {
+          "vacuum": "Motion does not count while it cleans or returns.",
+          "vacuum_charging": "Used by the camera rules.",
+          "fault_sensor": "While on (or unavailable) motion does not count, e.g. when the vacuum bridge fails.",
+          "notify_suppressed_motion": "Technical notification for every motion while armed and the fault sensor is on."
+        }
+      },
+      "reactions": {
+        "title": "Reactions on alarm",
+        "data": {},
+        "sections": {
+          "announce": {
+            "name": "Announcement",
+            "data": {
+              "announce_entities": "Announcement targets",
+              "text_triggered": "Text on alarm",
+              "text_pending": "Text at entry delay"
+            },
+            "data_description": {
+              "announce_entities": "Notify entities (e.g. Alexa announcement on all devices).",
+              "text_triggered": "Empty = standard text.",
+              "text_pending": "Empty = standard text."
+            }
+          },
+          "siren": {
+            "name": "Alarm sound and speech",
+            "data": {
+              "volume_players": "Speakers for volume",
+              "alarm_volume": "Alarm volume",
+              "reset_volume": "Volume afterwards",
+              "reset_volume_after": "Reset volume after",
+              "sound_devices": "Alexa devices for the alarm sound",
+              "sound": "Alarm sound",
+              "speak_services": "Spoken text"
+            },
+            "data_description": {
+              "sound": "Sound name of Alexa Devices.",
+              "speak_services": "Notify services that speak the alarm text (e.g. Alexa Media)."
+            }
+          },
+          "actions": {
+            "name": "Actions",
+            "data": {
+              "turn_on_entities": "Turn on",
+              "close_covers": "Close covers"
+            },
+            "data_description": {
+              "turn_on_entities": "Lights, switches, cameras."
+            }
+          }
+        }
+      },
+      "call": {
+        "title": "Phone call",
+        "data": {
+          "call_addon": "ha-sip add-on",
+          "call_targets": "Numbers in order",
+          "call_acknowledge": "Acknowledge with key 1",
+          "call_wait": "Wait before the next number",
+          "call_tts": "Speech for the call",
+          "call_language": "Language of the call",
+          "call_cooldown": "No new call for"
+        },
+        "data_description": {
+          "call_addon": "Slug of the add-on, e.g. 1234abcd_ha-sip. Empty = no call.",
+          "call_targets": "SIP addresses or numbers, one per entry.",
+          "call_acknowledge": "Every number except the last can stop the chain.",
+          "call_cooldown": "Calls and alarm push are not repeated within this time."
+        },
+        "description": "Calls through the ha-sip add-on. Every number except the last one can acknowledge with key 1 (the button 'Acknowledge call' is pressed)."
+      },
+      "auto_arm": {
+        "title": "Automatic arming",
+        "data": {
+          "presence_mode": "Presence by",
+          "wifi_sensors": "Wi-Fi sensors of the phones",
+          "home_networks": "Home networks",
+          "persons": "Persons",
+          "quiet_time": "No motion for",
+          "prewarn_time": "Warning before arming",
+          "retry_after_disarm": "Wait after disarming",
+          "presence_stable": "Away for at least"
+        },
+        "data_description": {
+          "home_networks": "Names of the networks at home."
+        },
+        "description": "Arms away when nobody is at home and there was no motion; warns before. Never while children are alone at home."
+      },
+      "lock": {
+        "title": "Door lock",
+        "data": {
+          "lock": "Door lock",
+          "lock_door_sensor": "Door contact",
+          "disarm_on_unlock": "Unlocking disarms",
+          "lock_on_arm": "Lock when armed"
+        },
+        "data_description": {
+          "lock_door_sensor": "Locked only when the door is closed.",
+          "lock_on_arm": "Not while children are alone at home."
+        }
+      },
+      "night_door": {
+        "title": "Night door alarm",
+        "data": {
+          "night_door_sensor": "Door contact",
+          "night_tag": "NFC tag ID",
+          "night_turn_on_entities": "Turn on",
+          "night_volume_players": "Speakers for volume",
+          "night_sound_devices": "Alexa devices for the alarm sound",
+          "night_speak_services": "Spoken text",
+          "night_text": "Text",
+          "night_reset_volume_after": "Reset volume after"
+        },
+        "data_description": {
+          "night_door_sensor": "Empty = no door alarm.",
+          "night_tag": "Scanning switches the door alarm on and off.",
+          "night_turn_on_entities": "Lights at 100 %.",
+          "night_text": "Empty = standard text."
+        },
+        "description": "Separate from the alarm panel: when switched on, opening the door sounds locally (no call, no push).",
+        "sections": {
+          "switch_off": {
+            "name": "Switching off",
+            "data": {
+              "night_off_time": "Switch off at",
+              "night_off_days": "On these days",
+              "night_off_speak_services": "Announce when switched off by tag",
+              "night_off_volume": "Volume of this announcement"
+            }
+          }
+        }
+      },
+      "extras": {
+        "title": "Children and hints",
+        "data": {},
+        "sections": {
+          "kids": {
+            "name": "Children alone at home",
+            "data": {
+              "kids_reset_after_unlock": "Reset after unlocking",
+              "kids_reset_time": "Reset at night"
+            }
+          },
+          "hint": {
+            "name": "Hint: window open when leaving",
+            "data": {
+              "hint_door_sensor": "Door contact",
+              "hint_windows": "Windows",
+              "hint_entity": "Hint light",
+              "hint_duration": "Duration"
+            },
+            "data_description": {
+              "hint_door_sensor": "Empty = no hint."
+            }
+          }
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "sensor": {
+      "entry_type": "Sensor",
+      "initiate_flow": {
+        "user": "Add sensor",
+        "reconfigure": "Change sensor"
+      },
+      "step": {
+        "basics": {
+          "title": "Sensor",
+          "data": {
+            "name": "Name",
+            "entity": "Sensor",
+            "type": "Type"
+          },
+          "description": "Name empty = name of the entity."
+        },
+        "behavior": {
+          "title": "Behaviour of {name}",
+          "data": {
+            "use_entry_delay": "Entry delay",
+            "use_exit_delay": "Exit delay",
+            "auto_bypass": "Ignore when open at arming",
+            "allow_open": "May be active at arming",
+            "only_when_unavailable": "Counts only while unavailable",
+            "arm_cover": "Cover when ignored",
+            "arm_cover_position": "Cover position",
+            "camera_preset": "Camera preset"
+          },
+          "data_description": {
+            "use_entry_delay": "Off: triggers immediately.",
+            "use_exit_delay": "May be open during the exit time.",
+            "auto_bypass": "Open windows are ignored until disarming instead of blocking.",
+            "allow_open": "For motion sensors.",
+            "only_when_unavailable": "The sensor counts only while this entity is unavailable (e.g. a door that is open for an air conditioner hose).",
+            "arm_cover": "Open but not counting when armed: move this cover.",
+            "camera_preset": "Preset when this motion sensor reports motion while armed."
+          }
+        }
+      },
+      "abort": {
+        "reconfigure_successful": "Saved."
+      }
+    },
+    "camera": {
+      "entry_type": "Camera",
+      "initiate_flow": {
+        "user": "Add camera",
+        "reconfigure": "Change camera"
+      },
+      "step": {
+        "user": {
+          "title": "Camera",
+          "data": {
+            "name": "Name",
+            "privacy_switch": "Privacy mode switch",
+            "ptz_select": "PTZ preset select",
+            "ptz_home_preset": "Default preset",
+            "privacy_delay": "Privacy on after disarming",
+            "record_switches": "Recording switches",
+            "detect_switches": "Detection switches",
+            "person_sensor": "Person detected",
+            "person_count_sensor": "Person count",
+            "person_image": "Person image",
+            "person_push": "Push with image when not disarmed"
+          },
+          "data_description": {
+            "record_switches": "Stay on while the vacuum drives.",
+            "detect_switches": "Off while the vacuum drives."
+          },
+          "description": "Privacy mode off while armed or children are alone at home, preset per motion sensor, detection off for live view, children and vacuum."
+        },
+        "reconfigure": {
+          "title": "Camera",
+          "data": {
+            "name": "Name",
+            "privacy_switch": "Privacy mode switch",
+            "ptz_select": "PTZ preset select",
+            "ptz_home_preset": "Default preset",
+            "privacy_delay": "Privacy on after disarming",
+            "record_switches": "Recording switches",
+            "detect_switches": "Detection switches",
+            "person_sensor": "Person detected",
+            "person_count_sensor": "Person count",
+            "person_image": "Person image",
+            "person_push": "Push with image when not disarmed"
+          },
+          "data_description": {
+            "record_switches": "Stay on while the vacuum drives.",
+            "detect_switches": "Off while the vacuum drives."
+          }
+        }
+      },
+      "error": {
+        "name_required": "Please enter a name."
+      },
+      "abort": {
+        "reconfigure_successful": "Saved."
+      }
+    },
+    "garage": {
+      "entry_type": "Garage",
+      "initiate_flow": {
+        "user": "Add garage",
+        "reconfigure": "Change garage"
+      },
+      "step": {
+        "user": {
+          "title": "Garage",
+          "data": {
+            "name": "Name",
+            "garage_panel": "Garage alarm panel",
+            "garage_networks": "Garage networks",
+            "garage_arm_delay": "Arm after leaving",
+            "garage_motion": "Motion sensors",
+            "garage_tts_services": "Spoken warning on phones",
+            "garage_tts_text": "Spoken text",
+            "garage_tts_repeat": "Repeat"
+          },
+          "data_description": {
+            "garage_networks": "Disarmed while a phone is connected (uses the Wi-Fi sensors of automatic arming).",
+            "garage_tts_services": "Companion app notify services.",
+            "garage_tts_text": "Empty = standard text."
+          }
+        },
+        "reconfigure": {
+          "title": "Garage",
+          "data": {
+            "name": "Name",
+            "garage_panel": "Garage alarm panel",
+            "garage_networks": "Garage networks",
+            "garage_arm_delay": "Arm after leaving",
+            "garage_motion": "Motion sensors",
+            "garage_tts_services": "Spoken warning on phones",
+            "garage_tts_text": "Spoken text",
+            "garage_tts_repeat": "Repeat"
+          },
+          "data_description": {
+            "garage_networks": "Disarmed while a phone is connected (uses the Wi-Fi sensors of automatic arming).",
+            "garage_tts_services": "Companion app notify services.",
+            "garage_tts_text": "Empty = standard text."
+          }
+        }
+      },
+      "error": {
+        "name_required": "Please enter a name."
+      },
+      "abort": {
+        "reconfigure_successful": "Saved."
+      }
+    }
+  },
+  "selector": {
+    "language": {
+      "options": {
+        "auto": "Auto",
+        "de": "Deutsch",
+        "en": "English"
+      }
+    },
+    "presence_mode": {
+      "options": {
+        "wifi": "Wi-Fi of the phones",
+        "persons": "Persons"
+      }
+    },
+    "sensor_type": {
+      "options": {
+        "door": "Door (delayed)",
+        "window": "Window (immediate)",
+        "motion": "Motion",
+        "other": "Other (immediate)"
+      }
+    },
+    "weekday": {
+      "options": {
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "motion": {
+        "name": "Motion"
+      },
+      "contacts_open": {
+        "name": "Contacts open"
+      },
+      "motion_suppressed": {
+        "name": "Motion suppressed"
+      },
+      "auto_arm_warning": {
+        "name": "Automatic arming warning"
+      }
+    },
+    "sensor": {
+      "cause": {
+        "name": "Cause"
+      },
+      "last_triggered": {
+        "name": "Last alarm"
+      }
+    },
+    "switch": {
+      "auto_arm": {
+        "name": "Automatic arming"
+      },
+      "kids_home": {
+        "name": "Children alone at home"
+      },
+      "night_door": {
+        "name": "Night door alarm"
+      },
+      "live_mode": {
+        "name": "Camera live view"
+      },
+      "garage_auto": {
+        "name": "Garage automatic"
+      }
+    },
+    "button": {
+      "call_acknowledge": {
+        "name": "Acknowledge call"
+      },
+      "test": {
+        "name": "Test message"
+      }
+    }
+  },
+  "issues": {
+    "missing_entities": {
+      "title": "Alarm Assistant: entities not found",
+      "description": "These configured entities or services do not exist: {entities}. Please check the configuration."
+    }
+  },
+  "exceptions": {
+    "wrong_code": {
+      "message": "Wrong code."
+    },
+    "arm_failed": {
+      "message": "Cannot arm, open: {sensors}"
+    }
+  }
+}

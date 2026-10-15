@@ -1,0 +1,515 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Alarm Assistant",
+        "data": {
+          "language": "Sprache der Meldungen",
+          "notify_services": "Push-Benachrichtigungen",
+          "notify_alarm_services": "Zusätzliche Alarm-Benachrichtigungen",
+          "notify_admin_services": "Technische Benachrichtigungen"
+        },
+        "data_description": {
+          "language": "Auto folgt Home Assistant.",
+          "notify_services": "Handys, die alle Meldungen bekommen (Alarm, Scharfschalten, Warnungen).",
+          "notify_alarm_services": "Bekommen nur den Alarm selbst (z. B. Pushover).",
+          "notify_admin_services": "Fehler des Bewegungsfilters und unterdrückte Bewegung."
+        },
+        "description": "Wer welche Meldungen bekommt. Sensoren, Kameras und Garagen werden danach hinzugefügt, alles andere steht in den Optionen."
+      },
+      "alarm": {
+        "title": "Alarm",
+        "data": {
+          "entry_delay": "Eingangsverzögerung",
+          "exit_delay": "Ausgangsverzögerung",
+          "trigger_time": "Auslösezeit",
+          "disarm_after_trigger": "Nach der Auslösezeit unscharf",
+          "code_arm_required": "Code auch zum Scharfschalten",
+          "armed_on_entities": "An, solange scharf",
+          "code": "Code (optional)"
+        },
+        "data_description": {
+          "entry_delay": "Zeit zum Entschärfen, nachdem ein verzögerter Sensor (Tür, Bewegung) ausgelöst hat.",
+          "exit_delay": "0 = sofort scharf.",
+          "trigger_time": "Wie lange der Alarm ausgelöst bleibt.",
+          "disarm_after_trigger": "Aus: danach wieder scharf.",
+          "armed_on_entities": "Beim Scharfschalten an, beim Unscharfschalten aus (z. B. Bewegungserkennung von Kameras).",
+          "code": "Zum Unscharfschalten nötig. Leer = kein Code."
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Einstellungen",
+        "menu_options": {
+          "general": "Benachrichtigungen",
+          "alarm": "Alarmzeiten und Code",
+          "motion": "Bewegungsfilter",
+          "reactions": "Reaktionen bei Alarm",
+          "call": "Telefonanruf",
+          "auto_arm": "Automatisch scharf",
+          "lock": "Türschloss",
+          "night_door": "Nacht-Türalarm",
+          "extras": "Kinder und Hinweise"
+        }
+      },
+      "general": {
+        "title": "Benachrichtigungen",
+        "data": {
+          "language": "Sprache der Meldungen",
+          "notify_services": "Push-Benachrichtigungen",
+          "notify_alarm_services": "Zusätzliche Alarm-Benachrichtigungen",
+          "notify_admin_services": "Technische Benachrichtigungen"
+        },
+        "data_description": {
+          "language": "Auto folgt Home Assistant.",
+          "notify_services": "Handys, die alle Meldungen bekommen (Alarm, Scharfschalten, Warnungen).",
+          "notify_alarm_services": "Bekommen nur den Alarm selbst (z. B. Pushover).",
+          "notify_admin_services": "Fehler des Bewegungsfilters und unterdrückte Bewegung."
+        }
+      },
+      "alarm": {
+        "title": "Alarmzeiten und Code",
+        "data": {
+          "entry_delay": "Eingangsverzögerung",
+          "exit_delay": "Ausgangsverzögerung",
+          "trigger_time": "Auslösezeit",
+          "disarm_after_trigger": "Nach der Auslösezeit unscharf",
+          "code_arm_required": "Code auch zum Scharfschalten",
+          "armed_on_entities": "An, solange scharf",
+          "new_code": "Neuer Code",
+          "remove_code": "Code entfernen"
+        },
+        "data_description": {
+          "entry_delay": "Zeit zum Entschärfen, nachdem ein verzögerter Sensor (Tür, Bewegung) ausgelöst hat.",
+          "exit_delay": "0 = sofort scharf.",
+          "trigger_time": "Wie lange der Alarm ausgelöst bleibt.",
+          "disarm_after_trigger": "Aus: danach wieder scharf.",
+          "armed_on_entities": "Beim Scharfschalten an, beim Unscharfschalten aus (z. B. Bewegungserkennung von Kameras).",
+          "new_code": "Leer lassen, um den bisherigen Code zu behalten."
+        },
+        "description": "Code gesetzt: {code}"
+      },
+      "motion": {
+        "title": "Bewegungsfilter",
+        "data": {
+          "vacuum": "Saugroboter",
+          "vacuum_charging": "Ladesensor Saugroboter",
+          "dock_grace": "Nachlauf nach dem Andocken",
+          "fault_sensor": "Fehler-Sensor",
+          "notify_suppressed_motion": "Unterdrückte Bewegung melden"
+        },
+        "data_description": {
+          "vacuum": "Bewegung zählt nicht, solange er saugt oder zurückfährt.",
+          "vacuum_charging": "Wird für die Kamera-Regeln verwendet.",
+          "fault_sensor": "Solange an (oder nicht verfügbar) zählt Bewegung nicht, z. B. wenn die Saugroboter-Anbindung ausfällt.",
+          "notify_suppressed_motion": "Technische Meldung bei jeder Bewegung, solange scharf und der Fehler-Sensor an ist."
+        }
+      },
+      "reactions": {
+        "title": "Reaktionen bei Alarm",
+        "data": {},
+        "sections": {
+          "announce": {
+            "name": "Durchsage",
+            "data": {
+              "announce_entities": "Durchsage-Ziele",
+              "text_triggered": "Text bei Alarm",
+              "text_pending": "Text bei Eingangsverzögerung"
+            },
+            "data_description": {
+              "announce_entities": "Benachrichtigungs-Entitäten (z. B. Alexa-Durchsage auf allen Geräten).",
+              "text_triggered": "Leer = Standardtext.",
+              "text_pending": "Leer = Standardtext."
+            }
+          },
+          "siren": {
+            "name": "Alarmton und Sprache",
+            "data": {
+              "volume_players": "Lautsprecher für Lautstärke",
+              "alarm_volume": "Alarm-Lautstärke",
+              "reset_volume": "Lautstärke danach",
+              "reset_volume_after": "Lautstärke zurück nach",
+              "sound_devices": "Alexa-Geräte für den Alarmton",
+              "sound": "Alarmton",
+              "speak_services": "Gesprochener Text"
+            },
+            "data_description": {
+              "sound": "Sound-Name von Alexa Devices.",
+              "speak_services": "Benachrichtigungsdienste, die den Alarmtext sprechen (z. B. Alexa Media)."
+            }
+          },
+          "actions": {
+            "name": "Aktionen",
+            "data": {
+              "turn_on_entities": "Einschalten",
+              "close_covers": "Rollos schließen"
+            },
+            "data_description": {
+              "turn_on_entities": "Lichter, Schalter, Kameras."
+            }
+          }
+        }
+      },
+      "call": {
+        "title": "Telefonanruf",
+        "data": {
+          "call_addon": "ha-sip-Add-on",
+          "call_targets": "Nummern der Reihe nach",
+          "call_acknowledge": "Quittieren mit Taste 1",
+          "call_wait": "Warten bis zur nächsten Nummer",
+          "call_tts": "Sprachausgabe für den Anruf",
+          "call_language": "Sprache des Anrufs",
+          "call_cooldown": "Kein neuer Anruf für"
+        },
+        "data_description": {
+          "call_addon": "Slug des Add-ons, z. B. 1234abcd_ha-sip. Leer = kein Anruf.",
+          "call_targets": "SIP-Adressen oder Nummern, je Eintrag eine.",
+          "call_acknowledge": "Jede Nummer außer der letzten kann die Kette beenden.",
+          "call_cooldown": "Anruf und Alarm-Push werden innerhalb dieser Zeit nicht wiederholt."
+        },
+        "description": "Anrufe über das ha-sip-Add-on. Jede Nummer außer der letzten kann mit Taste 1 quittieren (dabei wird der Button 'Anruf quittieren' gedrückt)."
+      },
+      "auto_arm": {
+        "title": "Automatisch scharf",
+        "data": {
+          "presence_mode": "Anwesenheit über",
+          "wifi_sensors": "WLAN-Sensoren der Handys",
+          "home_networks": "Heim-WLANs",
+          "persons": "Personen",
+          "quiet_time": "Keine Bewegung seit",
+          "prewarn_time": "Vorwarnung vor dem Scharfschalten",
+          "retry_after_disarm": "Warten nach dem Unscharfschalten",
+          "presence_stable": "Abwesend seit mindestens"
+        },
+        "data_description": {
+          "home_networks": "Namen der WLANs zuhause."
+        },
+        "description": "Schaltet scharf, wenn niemand zuhause ist und keine Bewegung war; warnt vorher. Nie, wenn Kinder alleine zuhause sind."
+      },
+      "lock": {
+        "title": "Türschloss",
+        "data": {
+          "lock": "Türschloss",
+          "lock_door_sensor": "Türkontakt",
+          "disarm_on_unlock": "Entriegeln schaltet unscharf",
+          "lock_on_arm": "Beim Scharfschalten abschließen"
+        },
+        "data_description": {
+          "lock_door_sensor": "Abgeschlossen wird nur bei geschlossener Tür.",
+          "lock_on_arm": "Nicht, wenn Kinder alleine zuhause sind."
+        }
+      },
+      "night_door": {
+        "title": "Nacht-Türalarm",
+        "data": {
+          "night_door_sensor": "Türkontakt",
+          "night_tag": "NFC-Tag-ID",
+          "night_turn_on_entities": "Einschalten",
+          "night_volume_players": "Lautsprecher für Lautstärke",
+          "night_sound_devices": "Alexa-Geräte für den Alarmton",
+          "night_speak_services": "Gesprochener Text",
+          "night_text": "Text",
+          "night_reset_volume_after": "Lautstärke zurück nach"
+        },
+        "data_description": {
+          "night_door_sensor": "Leer = kein Türalarm.",
+          "night_tag": "Scannen schaltet den Türalarm an und aus.",
+          "night_turn_on_entities": "Lichter auf 100 %.",
+          "night_text": "Leer = Standardtext."
+        },
+        "description": "Unabhängig von der Alarmzentrale: eingeschaltet ertönt beim Öffnen der Tür ein lokaler Alarm (kein Anruf, kein Push).",
+        "sections": {
+          "switch_off": {
+            "name": "Ausschalten",
+            "data": {
+              "night_off_time": "Ausschalten um",
+              "night_off_days": "An diesen Tagen",
+              "night_off_speak_services": "Ansage beim Ausschalten per Tag",
+              "night_off_volume": "Lautstärke dieser Ansage"
+            }
+          }
+        }
+      },
+      "extras": {
+        "title": "Kinder und Hinweise",
+        "data": {},
+        "sections": {
+          "kids": {
+            "name": "Kinder alleine zuhause",
+            "data": {
+              "kids_reset_after_unlock": "Zurücksetzen nach dem Entriegeln",
+              "kids_reset_time": "Nachts zurücksetzen um"
+            }
+          },
+          "hint": {
+            "name": "Hinweis: Fenster offen beim Gehen",
+            "data": {
+              "hint_door_sensor": "Türkontakt",
+              "hint_windows": "Fenster",
+              "hint_entity": "Hinweis-Licht",
+              "hint_duration": "Dauer"
+            },
+            "data_description": {
+              "hint_door_sensor": "Leer = kein Hinweis."
+            }
+          }
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "sensor": {
+      "entry_type": "Sensor",
+      "initiate_flow": {
+        "user": "Sensor hinzufügen",
+        "reconfigure": "Sensor ändern"
+      },
+      "step": {
+        "basics": {
+          "title": "Sensor",
+          "data": {
+            "name": "Name",
+            "entity": "Sensor",
+            "type": "Typ"
+          },
+          "description": "Name leer = Name der Entität."
+        },
+        "behavior": {
+          "title": "Verhalten von {name}",
+          "data": {
+            "use_entry_delay": "Eingangsverzögerung",
+            "use_exit_delay": "Ausgangsverzögerung",
+            "auto_bypass": "Beim Scharfschalten offen = ignorieren",
+            "allow_open": "Darf beim Scharfschalten aktiv sein",
+            "only_when_unavailable": "Zählt nur, wenn nicht verfügbar",
+            "arm_cover": "Rollo, wenn ignoriert",
+            "arm_cover_position": "Rollo-Position",
+            "camera_preset": "Kamera-Preset"
+          },
+          "data_description": {
+            "use_entry_delay": "Aus: löst sofort aus.",
+            "use_exit_delay": "Darf während der Ausgangszeit offen sein.",
+            "auto_bypass": "Offene Fenster werden bis zum Unscharfschalten ignoriert statt zu blockieren.",
+            "allow_open": "Für Bewegungsmelder.",
+            "only_when_unavailable": "Der Sensor zählt nur, solange diese Entität nicht verfügbar ist (z. B. Tür, die für den Klimaschlauch offen steht).",
+            "arm_cover": "Beim Scharfschalten offen, zählt aber nicht: dieses Rollo fahren.",
+            "camera_preset": "Preset, wenn dieser Bewegungsmelder scharf Bewegung meldet."
+          }
+        }
+      },
+      "abort": {
+        "reconfigure_successful": "Gespeichert."
+      }
+    },
+    "camera": {
+      "entry_type": "Kamera",
+      "initiate_flow": {
+        "user": "Kamera hinzufügen",
+        "reconfigure": "Kamera ändern"
+      },
+      "step": {
+        "user": {
+          "title": "Kamera",
+          "data": {
+            "name": "Name",
+            "privacy_switch": "Schalter Privatsphäre-Modus",
+            "ptz_select": "PTZ-Preset-Auswahl",
+            "ptz_home_preset": "Standard-Preset",
+            "privacy_delay": "Privatsphäre an nach Unscharf",
+            "record_switches": "Aufnahme-Schalter",
+            "detect_switches": "Erkennungs-Schalter",
+            "person_sensor": "Person erkannt",
+            "person_count_sensor": "Anzahl Personen",
+            "person_image": "Personenbild",
+            "person_push": "Push mit Bild, wenn nicht unscharf"
+          },
+          "data_description": {
+            "record_switches": "Bleiben an, solange der Saugroboter fährt.",
+            "detect_switches": "Aus, solange der Saugroboter fährt."
+          },
+          "description": "Privatsphäre aus, solange scharf oder Kinder alleine zuhause, Preset je Bewegungsmelder, Erkennung aus bei Live-Ansicht, Kindern und Saugroboter."
+        },
+        "reconfigure": {
+          "title": "Kamera",
+          "data": {
+            "name": "Name",
+            "privacy_switch": "Schalter Privatsphäre-Modus",
+            "ptz_select": "PTZ-Preset-Auswahl",
+            "ptz_home_preset": "Standard-Preset",
+            "privacy_delay": "Privatsphäre an nach Unscharf",
+            "record_switches": "Aufnahme-Schalter",
+            "detect_switches": "Erkennungs-Schalter",
+            "person_sensor": "Person erkannt",
+            "person_count_sensor": "Anzahl Personen",
+            "person_image": "Personenbild",
+            "person_push": "Push mit Bild, wenn nicht unscharf"
+          },
+          "data_description": {
+            "record_switches": "Bleiben an, solange der Saugroboter fährt.",
+            "detect_switches": "Aus, solange der Saugroboter fährt."
+          }
+        }
+      },
+      "error": {
+        "name_required": "Bitte einen Namen eingeben."
+      },
+      "abort": {
+        "reconfigure_successful": "Gespeichert."
+      }
+    },
+    "garage": {
+      "entry_type": "Garage",
+      "initiate_flow": {
+        "user": "Garage hinzufügen",
+        "reconfigure": "Garage ändern"
+      },
+      "step": {
+        "user": {
+          "title": "Garage",
+          "data": {
+            "name": "Name",
+            "garage_panel": "Alarmzentrale Garage",
+            "garage_networks": "Garagen-WLANs",
+            "garage_arm_delay": "Scharf nach dem Verlassen",
+            "garage_motion": "Bewegungssensoren",
+            "garage_tts_services": "Gesprochene Warnung auf Handys",
+            "garage_tts_text": "Gesprochener Text",
+            "garage_tts_repeat": "Wiederholen"
+          },
+          "data_description": {
+            "garage_networks": "Unscharf, solange ein Handy verbunden ist (nutzt die WLAN-Sensoren des automatischen Scharfschaltens).",
+            "garage_tts_services": "Benachrichtigungsdienste der Companion App.",
+            "garage_tts_text": "Leer = Standardtext."
+          }
+        },
+        "reconfigure": {
+          "title": "Garage",
+          "data": {
+            "name": "Name",
+            "garage_panel": "Alarmzentrale Garage",
+            "garage_networks": "Garagen-WLANs",
+            "garage_arm_delay": "Scharf nach dem Verlassen",
+            "garage_motion": "Bewegungssensoren",
+            "garage_tts_services": "Gesprochene Warnung auf Handys",
+            "garage_tts_text": "Gesprochener Text",
+            "garage_tts_repeat": "Wiederholen"
+          },
+          "data_description": {
+            "garage_networks": "Unscharf, solange ein Handy verbunden ist (nutzt die WLAN-Sensoren des automatischen Scharfschaltens).",
+            "garage_tts_services": "Benachrichtigungsdienste der Companion App.",
+            "garage_tts_text": "Leer = Standardtext."
+          }
+        }
+      },
+      "error": {
+        "name_required": "Bitte einen Namen eingeben."
+      },
+      "abort": {
+        "reconfigure_successful": "Gespeichert."
+      }
+    }
+  },
+  "selector": {
+    "language": {
+      "options": {
+        "auto": "Auto",
+        "de": "Deutsch",
+        "en": "English"
+      }
+    },
+    "presence_mode": {
+      "options": {
+        "wifi": "WLAN der Handys",
+        "persons": "Personen"
+      }
+    },
+    "sensor_type": {
+      "options": {
+        "door": "Tür (verzögert)",
+        "window": "Fenster (sofort)",
+        "motion": "Bewegung",
+        "other": "Sonstiges (sofort)"
+      }
+    },
+    "weekday": {
+      "options": {
+        "mon": "Montag",
+        "tue": "Dienstag",
+        "wed": "Mittwoch",
+        "thu": "Donnerstag",
+        "fri": "Freitag",
+        "sat": "Samstag",
+        "sun": "Sonntag"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "motion": {
+        "name": "Bewegung"
+      },
+      "contacts_open": {
+        "name": "Kontakte offen"
+      },
+      "motion_suppressed": {
+        "name": "Bewegung unterdrückt"
+      },
+      "auto_arm_warning": {
+        "name": "Vorwarnung automatisch scharf"
+      }
+    },
+    "sensor": {
+      "cause": {
+        "name": "Ursache"
+      },
+      "last_triggered": {
+        "name": "Letzter Alarm"
+      }
+    },
+    "switch": {
+      "auto_arm": {
+        "name": "Automatisch scharf"
+      },
+      "kids_home": {
+        "name": "Kinder alleine zuhause"
+      },
+      "night_door": {
+        "name": "Nacht-Türalarm"
+      },
+      "live_mode": {
+        "name": "Kamera Live-Ansicht"
+      },
+      "garage_auto": {
+        "name": "Garage Automatik"
+      }
+    },
+    "button": {
+      "call_acknowledge": {
+        "name": "Anruf quittieren"
+      },
+      "test": {
+        "name": "Testmeldung"
+      }
+    }
+  },
+  "issues": {
+    "missing_entities": {
+      "title": "Alarm Assistant: Entitäten nicht gefunden",
+      "description": "Diese eingestellten Entitäten oder Dienste gibt es nicht: {entities}. Bitte die Einstellungen prüfen."
+    }
+  },
+  "exceptions": {
+    "wrong_code": {
+      "message": "Falscher Code."
+    },
+    "arm_failed": {
+      "message": "Scharfschalten nicht möglich, offen: {sensors}"
+    }
+  }
+}
