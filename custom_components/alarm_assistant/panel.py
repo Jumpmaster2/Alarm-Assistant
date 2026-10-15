@@ -29,7 +29,7 @@ async def async_register_panel(hass: HomeAssistant, entry_id: str) -> None:
         hass.data[DATA_STATIC] = True
     if frontend.async_panel_exists(hass, PANEL_URL_PATH):
         return
-    version = _version()
+    version = await hass.async_add_executor_job(_version)
     await panel_custom.async_register_panel(
         hass,
         frontend_url_path=PANEL_URL_PATH,

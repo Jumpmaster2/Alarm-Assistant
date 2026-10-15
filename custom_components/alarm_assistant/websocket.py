@@ -101,10 +101,11 @@ def config_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             entity_id := registry.async_get_entity_id("binary_sensor", DOMAIN, f"{sub_id}_presence")
         ):
             presence[sub_id] = entity_id
+    device_registry = dr.async_get(hass)
     devices = [
         {"id": device.id, "name": device.name_by_user or device.name or device.id}
-        for device in dr.async_get(hass).devices.values()
-        if any(ident[0] == "alexa_devices" for ident in device.identifiers)
+        for alexa_entry in hass.config_entries.async_entries("alexa_devices")
+        for device in dr.async_entries_for_config_entry(device_registry, alexa_entry.entry_id)
     ]
     options = {k: v for k, v in entry.options.items() if k != CONF_CODE}
     engine = getattr(entry, "runtime_data", None)

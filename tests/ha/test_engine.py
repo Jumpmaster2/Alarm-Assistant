@@ -411,6 +411,8 @@ async def test_camera_rules(
 ) -> None:
     freezer.move_to(START)
     hass.states.async_set("switch.cam_privacy", "on")
+    hass.states.async_set("switch.cam_record", "on")
+    hass.states.async_set("switch.cam_detect", "on")
     hass.states.async_set("binary_sensor.cam_person", "off")
     hass.states.async_set("image.cam_person", "x", {"entity_picture": "/api/image/1"})
     await setup_entry(hass, make_entry(extra_subentries=[CAMERA]))

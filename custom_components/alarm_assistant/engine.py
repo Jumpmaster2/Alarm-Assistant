@@ -1483,6 +1483,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         if mode == cam.FRIGATE_ALL_OFF:
             on = []
         off = [e for e in record + detect if e not in on]
+        # switches that are not loaded yet (start of Home Assistant) are skipped
+        on = [e for e in on if self._value(e) not in (None, *INVALID)]
+        off = [e for e in off if self._value(e) not in (None, *INVALID)]
         if on:
             await self._async_call("switch", "turn_on", {"entity_id": on})
         if off:

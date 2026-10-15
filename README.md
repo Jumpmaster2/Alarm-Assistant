@@ -4,7 +4,7 @@
 
 Custom Integration für Home Assistant: eine Alarmzentrale mit allem, was sonst in vielen Automationen, Skripten und Helfern steckt. Scharf- und Unscharfschalten (auch automatisch bei Abwesenheit), Ein- und Ausgangsverzögerung, offene Fenster ignorieren, Durchsagen und Alarmton auf Alexa-Geräten, Licht und Rollos bei Alarm, Telefonanruf mit Quittierung über das ha-sip-Add-on, Türschloss, Kamera-Steuerung, Garagen-Kameras, ein Nacht-Türalarm und ein Fenster-offen-Hinweis an der Haustür. Alles wird in der Oberfläche eingestellt, es sind keine eigenen Automationen nötig.
 
-> Status: Version 0.4.0.
+> Status: Version 0.4.1.
 
 ## Funktionsweise
 

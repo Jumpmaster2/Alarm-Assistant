@@ -1584,4 +1584,6 @@ summary { cursor:pointer; font-weight:500; color:var(--primary-color); }
 }
 `;
 
-customElements.define("alarm-assistant-panel", AlarmAssistantPanel);
+if (!customElements.get("alarm-assistant-panel")) {
+  customElements.define("alarm-assistant-panel", AlarmAssistantPanel);
+}
