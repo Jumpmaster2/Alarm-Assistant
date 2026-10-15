@@ -4,7 +4,7 @@
 
 Custom integration for Home Assistant: an alarm panel with everything that otherwise lives in many automations, scripts and helpers. Arming and disarming (also automatically when everybody is away), entry and exit delay, ignoring open windows, announcements and alarm sound on Alexa devices, lights and covers on alarm, phone call with acknowledgement through the ha-sip add-on, door lock, camera control, garage cameras, a night door alarm and a window open hint at the front door. Everything is set up in the UI, no own automations are needed.
 
-> Status: version 0.4.1.
+> Status: version 0.4.2.
 
 ## How it works
 

@@ -935,7 +935,7 @@ class AlarmAssistantPanel extends HTMLElement {
         return `<div class="test-group">
           <label class="toggle-row"><span class="lbl"><ha-icon icon="${icon}"></ha-icon> ${esc(ui.testGroups[key] || key)}</span>
             <input type="checkbox" class="switch-input" data-test-key="${esc(key)}" ${groupOn ? "checked" : ""} ${locked ? "disabled" : ""}><span class="switch ${groupOn ? "on" : ""}"></span></label>
-          ${items.length > 1 || key === "push" || key === "call" ? `<div class="checks test-items">${rows}</div>` : ""}
+          <div class="checks test-items">${rows}</div>
         </div>`;
       })
       .join("");
