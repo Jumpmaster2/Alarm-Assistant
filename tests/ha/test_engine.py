@@ -473,6 +473,61 @@ async def test_camera_rules(
     assert ["switch.cam_record", "switch.cam_detect"] in off
 
 
+def _switched(service_events, service: str) -> list[str]:
+    return [e for c in calls_of(service_events, "switch", service) for e in c["entity_id"]]
+
+
+async def test_frigate_switches_set_again(
+    hass: HomeAssistant, base_states, calls, service_events, freezer: FrozenDateTimeFactory
+) -> None:
+    """Frigate restarts or someone switches: the rules are applied again."""
+    freezer.move_to(START)
+    hass.states.async_set("switch.cam_privacy", "on")
+    hass.states.async_set("switch.cam_record", "on")
+    # detection is not loaded yet when Home Assistant starts
+    await setup_entry(hass, make_entry(extra_subentries=[CAMERA]))
+    await _arm(hass)
+    service_events.clear()
+    # detection appears (off after a Frigate restart): switched on after the pause
+    await set_state(hass, "switch.cam_detect", "off")
+    await advance(hass, freezer, 5, step=5)
+    assert _switched(service_events, "turn_on") == []
+    await advance(hass, freezer, 6, step=6)
+    assert "switch.cam_detect" in _switched(service_events, "turn_on")
+    await set_state(hass, "switch.cam_detect", "on")
+    # Frigate restarts: unavailable, back with its start value
+    service_events.clear()
+    await set_state(hass, "switch.cam_record", "unavailable")
+    await set_state(hass, "switch.cam_detect", "unavailable")
+    await advance(hass, freezer, 20, step=10)
+    assert _switched(service_events, "turn_on") == []
+    await set_state(hass, "switch.cam_record", "on")
+    await set_state(hass, "switch.cam_detect", "off")
+    await advance(hass, freezer, 11, step=11)
+    assert "switch.cam_detect" in _switched(service_events, "turn_on")
+    await set_state(hass, "switch.cam_detect", "on")
+    # back in the wanted state: nothing to do
+    service_events.clear()
+    await set_state(hass, "switch.cam_detect", "unavailable")
+    await set_state(hass, "switch.cam_detect", "on")
+    await advance(hass, freezer, 20, step=10)
+    assert _switched(service_events, "turn_on") == []
+    # a switch that does not follow is set again only a few times
+    await advance(hass, freezer, 600, step=60)
+    for _ in range(5):
+        await set_state(hass, "switch.cam_detect", "off")
+        await advance(hass, freezer, 11, step=11)
+        await set_state(hass, "switch.cam_detect", "on")
+    assert _switched(service_events, "turn_on").count("switch.cam_detect") == 3
+    # an own change of the rules is no deviation: detection off for the vacuum
+    service_events.clear()
+    await set_state(hass, VACUUM, "cleaning", {"is_docked": False})
+    assert "switch.cam_detect" in _switched(service_events, "turn_off")
+    await set_state(hass, "switch.cam_detect", "off")
+    await advance(hass, freezer, 20, step=10)
+    assert "switch.cam_detect" not in _switched(service_events, "turn_on")
+
+
 GARAGE = ConfigSubentryData(
     data={
         "garage_panel": "alarm_control_panel.garage",

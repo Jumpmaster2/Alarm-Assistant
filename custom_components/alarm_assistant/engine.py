@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from collections.abc import Callable, Coroutine, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from typing import Any
 
@@ -167,6 +167,12 @@ LOCK_RETRY = 10
 PAUSE_SOUND = 2
 PAUSE_CAMERA = 4
 PAUSE_PTZ = 3
+# A detection switch that comes back (Frigate restarted) or is switched by
+# someone else is set again after this pause; at most a few times per window,
+# so a switch that does not follow cannot cause a loop.
+FRIGATE_RESYNC = 10
+FRIGATE_RESYNC_MAX = 3
+FRIGATE_RESYNC_WINDOW = timedelta(minutes=10)
 
 
 async def _sleep(seconds: float) -> None:
@@ -212,6 +218,7 @@ class Camera:
     conf: dict[str, Any]
     privacy_task: asyncio.Task | None = None
     ptz_task: asyncio.Task | None = None
+    resyncs: list[datetime] = field(default_factory=list)
 
 
 @dataclass
@@ -536,6 +543,10 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             self._track(cam_inputs, self._on_camera_input)
             self._track(
                 [c.conf.get(CONF_PERSON_SENSOR) for c in self.cameras.values()], self._on_person
+            )
+            self._track(
+                [s for c in self.cameras.values() for s in self._frigate_switches(c)],
+                self._on_frigate_switch,
             )
         if self.garages:
             self._track(self.wifi_sensors(), self._on_garage_wifi)
@@ -1515,12 +1526,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         return cam.frigate_mode(self.live_mode, self.state == sm.DISARMED, self.kids_home, active)
 
     async def _async_frigate(self, camera: Camera, mode: str) -> None:
-        record = [str(e) for e in camera.conf.get(CONF_RECORD_SWITCHES) or []]
-        detect = [str(e) for e in camera.conf.get(CONF_DETECT_SWITCHES) or []]
-        on = record + detect if mode == cam.FRIGATE_ALL_ON else record
-        if mode == cam.FRIGATE_ALL_OFF:
-            on = []
-        off = [e for e in record + detect if e not in on]
+        on, off = self._frigate_split(camera, mode)
         # switches that are not loaded yet (start of Home Assistant) are skipped
         on = [e for e in on if self._value(e) not in (None, *INVALID)]
         off = [e for e in off if self._value(e) not in (None, *INVALID)]
@@ -1536,6 +1542,54 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 self._async_frigate(camera, self._frigate_mode()),
                 restart=True,
             )
+
+    def _frigate_switches(self, camera: Camera) -> list[str]:
+        record = [str(e) for e in camera.conf.get(CONF_RECORD_SWITCHES) or []]
+        detect = [str(e) for e in camera.conf.get(CONF_DETECT_SWITCHES) or []]
+        return record + detect
+
+    def _frigate_split(self, camera: Camera, mode: str) -> tuple[list[str], list[str]]:
+        record = [str(e) for e in camera.conf.get(CONF_RECORD_SWITCHES) or []]
+        detect = [str(e) for e in camera.conf.get(CONF_DETECT_SWITCHES) or []]
+        return cam.frigate_split(mode, record, detect)
+
+    def _frigate_deviates(self, camera: Camera) -> bool:
+        """A loaded switch of the camera is not in the state the rules want."""
+        on, off = self._frigate_split(camera, self._frigate_mode())
+        return any(self._value(e) == sm.OFF for e in on) or any(
+            self._value(e) == sm.ON for e in off
+        )
+
+    @callback
+    def _on_frigate_switch(self, event: Event[EventStateChangedData]) -> None:
+        """Frigate restarted or someone switched: set the switches again (debounced)."""
+        new = event.data["new_state"]
+        old = event.data["old_state"]
+        if new is None or new.state in INVALID:
+            return
+        came_back = old is None or old.state in INVALID
+        for camera in self.cameras.values():
+            if new.entity_id not in self._frigate_switches(camera):
+                continue
+            if came_back or self._frigate_deviates(camera):
+                self._schedule(
+                    f"frigate_resync_{camera.camera_id}",
+                    dt_util.utcnow() + timedelta(seconds=FRIGATE_RESYNC),
+                    lambda now, camera=camera: self._frigate_resync(camera, now),
+                )
+
+    def _frigate_resync(self, camera: Camera, now: datetime) -> None:
+        if not self._frigate_deviates(camera):
+            return
+        camera.resyncs = [t for t in camera.resyncs if now - t < FRIGATE_RESYNC_WINDOW]
+        if len(camera.resyncs) >= FRIGATE_RESYNC_MAX:
+            LOGGER.warning(
+                "%s: detection switches do not follow, not set again for now", camera.name
+            )
+            return
+        camera.resyncs.append(now)
+        LOGGER.info("%s: detection switches differ from the rules, set again", camera.name)
+        self._apply_frigate(camera)
 
     def _camera_rules_changed(self) -> None:
         for camera in self._cameras():

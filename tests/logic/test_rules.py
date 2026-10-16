@@ -17,6 +17,7 @@ from logic.camera import (
     FRIGATE_ALL_ON,
     FRIGATE_DETECT_OFF,
     frigate_mode,
+    frigate_split,
     privacy_wanted,
     vacuum_active,
 )
@@ -150,6 +151,13 @@ def test_frigate_mode() -> None:
     assert frigate_mode(False, False, True, True) == FRIGATE_ALL_OFF
     assert frigate_mode(False, True, False, True) == FRIGATE_DETECT_OFF
     assert frigate_mode(False, True, False, False) == FRIGATE_ALL_ON
+
+
+def test_frigate_split() -> None:
+    rec, det = ["r"], ["d1", "d2"]
+    assert frigate_split(FRIGATE_ALL_ON, rec, det) == (["r", "d1", "d2"], [])
+    assert frigate_split(FRIGATE_DETECT_OFF, rec, det) == (["r"], ["d1", "d2"])
+    assert frigate_split(FRIGATE_ALL_OFF, rec, det) == ([], ["r", "d1", "d2"])
 
 
 def test_privacy_wanted() -> None:

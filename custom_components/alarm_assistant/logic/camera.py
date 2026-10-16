@@ -29,6 +29,18 @@ def frigate_mode(live: bool, disarmed: bool, kids_home: bool, vacuum: bool) -> s
     return FRIGATE_ALL_ON
 
 
+def frigate_split(mode: str, record: list[str], detect: list[str]) -> tuple[list[str], list[str]]:
+    """Switches to turn on and off for a mode."""
+    if mode == FRIGATE_ALL_OFF:
+        on: list[str] = []
+    elif mode == FRIGATE_ALL_ON:
+        on = record + detect
+    else:
+        on = list(record)
+    off = [e for e in record + detect if e not in on]
+    return on, off
+
+
 def privacy_wanted(disarmed: bool, kids_home: bool, live: bool) -> bool:
     """Privacy mode on: disarmed, no children alone, no live view."""
     return disarmed and not kids_home and not live
