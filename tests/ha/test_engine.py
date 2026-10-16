@@ -229,6 +229,35 @@ async def test_unlocking_disarms(
     assert _state(hass) == "disarmed"
 
 
+async def test_lock_falling_back_does_not_disarm(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(**REACTIONS))
+    await _arm(hass)
+    assert len(calls["lock"]) == 1
+    # the lock reports locked and falls back to unlocked seconds later
+    await set_state(hass, LOCK, "locking")
+    await set_state(hass, LOCK, "locked")
+    await advance(hass, freezer, 3)
+    await set_state(hass, LOCK, "unlocked")
+    assert _state(hass) == "armed_away"
+    assert any("retried" in c.data["message"] for c in calls["notify"])
+    # one retry, a second failure only warns
+    await advance(hass, freezer, 11)
+    assert len(calls["lock"]) == 2
+    await set_state(hass, LOCK, "locked")
+    await set_state(hass, LOCK, "unlocked")
+    assert _state(hass) == "armed_away"
+    assert any("again" in c.data["message"] for c in calls["notify"])
+    await advance(hass, freezer, 30)
+    assert len(calls["lock"]) == 2
+    # unlocking later is a person: disarms
+    await set_state(hass, LOCK, "locked")
+    await set_state(hass, LOCK, "opening")
+    assert _state(hass) == "disarmed"
+
+
 async def test_code(
     hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
 ) -> None:

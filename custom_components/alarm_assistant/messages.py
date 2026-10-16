@@ -34,7 +34,19 @@ _TEXTS: dict[str, dict[str, str]] = {
         "de": "Alarm aktiviert, aber folgende Fenster sind offen und wurden ignoriert: {sensors}.",
         "en": "Alarm armed, but these open windows are ignored: {sensors}.",
     },
-    "title_prewarn": {"de": "Alarmanlage aktiviert bald", "en": "Alarm will arm soon"},
+    "title_lock_failed": {"de": "Tür nicht abgeschlossen", "en": "Door not locked"},
+    "push_lock_retry": {
+        "de": "Das Schloss hat sich nicht verriegelt. Die Alarmanlage bleibt scharf, "
+        "Abschließen wird gleich noch einmal versucht.",
+        "en": "The lock did not engage. The alarm stays armed, locking is retried shortly.",
+    },
+    "push_lock_failed": {
+        "de": "Das Schloss hat sich wieder nicht verriegelt. Die Alarmanlage bleibt scharf, "
+        "die Tür ist aber nicht abgeschlossen.",
+        "en": "The lock did not engage again. The alarm stays armed, "
+        "but the door is not locked.",
+    },
+    "title_prewarn":{"de": "Alarmanlage aktiviert bald", "en": "Alarm will arm soon"},
     "push_prewarn": {
         "de": "Niemand ist zuhause. Die Alarmanlage wird in {minutes} Minuten automatisch "
         "aktiviert, wenn Kinder alleine zuhause nicht aktiviert wird.",
@@ -119,6 +131,10 @@ _TEXTS: dict[str, dict[str, str]] = {
     },
     "log_auto_armed": {"de": "Automatisch scharf geschaltet", "en": "Armed automatically"},
     "log_locked": {"de": "Tür abgeschlossen", "en": "Door locked"},
+    "log_lock_failed": {
+        "de": "Abschließen fehlgeschlagen, bleibt scharf",
+        "en": "Locking failed, stays armed",
+    },
     "log_call": {"de": "Anruf an {target}", "en": "Calling {target}"},
     "log_call_ack": {"de": "Anruf quittiert", "en": "Call acknowledged"},
     "log_kids_reset": {

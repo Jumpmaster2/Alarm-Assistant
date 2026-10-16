@@ -159,6 +159,10 @@ type AlarmConfigEntry = ConfigEntry[AlarmEngine]
 
 INVALID = (STATE_UNAVAILABLE, STATE_UNKNOWN)
 UNLOCKED_STATES = ("unlocked", "open", "opening")
+# A lock that falls back to "unlocked" this soon after we locked it did not
+# lock (bolt blocked); this is no unlocking by a person.
+LOCK_SETTLE = 20
+LOCK_RETRY = 10
 # Short pauses inside reaction sequences (volume before sound, camera wake up).
 PAUSE_SOUND = 2
 PAUSE_CAMERA = 4
@@ -260,6 +264,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         self.last_motion: datetime | None = None
         self.motion_active = False
         self.prewarn_until: datetime | None = None
+        # door lock: when we last sent "lock" and whether we already retried
+        self.lock_sent: datetime | None = None
+        self.lock_retried = False
         # call
         self.call_block_until: datetime | None = None
         self.call_acked = False
@@ -905,6 +912,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             )
         else:
             self._log("log_auto_armed" if automatic else "log_armed")
+        self.lock_retried = False
         self._lock_door()
         for entity_id in self._filter("armed_on", self.opt_list(CONF_ARM_ON_ENTITIES)):
             self.hass.async_create_task(
@@ -948,12 +956,39 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         if self._value(lock) in ("locked", "locking", STATE_UNAVAILABLE, STATE_UNKNOWN, None):
             return
         self._log("log_locked")
+        self.lock_sent = dt_util.utcnow()
         self.hass.async_create_task(self._async_call("lock", "lock", {"entity_id": lock}))
+
+    def _lock_bounced(self, old: State | None, new: State) -> bool:
+        """True if the lock fell back to unlocked right after our lock command."""
+        if self.lock_sent is None or new.state != "unlocked":
+            return False
+        if old is None or old.state not in ("locking", "locked"):
+            return False
+        return dt_util.utcnow() - self.lock_sent <= timedelta(seconds=LOCK_SETTLE)
+
+    def _lock_failed(self) -> None:
+        self.lock_sent = None
+        self._log("log_lock_failed")
+        retry = not self.lock_retried
+        self._notify(
+            self._push(CONF_NOTIFY),
+            self._mark(self.t("title_lock_failed")),
+            self._mark(self.t("push_lock_retry" if retry else "push_lock_failed")),
+        )
+        if retry:
+            self.lock_retried = True
+            self._schedule(
+                "lock_retry",
+                dt_util.utcnow() + timedelta(seconds=LOCK_RETRY),
+                lambda _now: self._lock_door() if self.state in sm.ARMED_STATES else None,
+            )
 
     def disarm(self, by_lock: bool = False) -> None:
         if self.state == sm.DISARMED:
             return
-        for key in ("exit", "entry", "trigger_end"):
+        self.lock_sent = None
+        for key in ("exit", "entry", "trigger_end", "lock_retry"):
             self._cancel(key)
         self.state = sm.DISARMED
         self.bypassed = []
@@ -1251,6 +1286,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         if new is None or new.state not in UNLOCKED_STATES:
             return
         if old is not None and old.state == new.state:
+            return
+        if self.state in sm.ARMED_STATES and self._lock_bounced(old, new):
+            self._lock_failed()
             return
         if self.opt(CONF_DISARM_ON_UNLOCK) and self.state in sm.ARMED_STATES:
             self.disarm(by_lock=True)
