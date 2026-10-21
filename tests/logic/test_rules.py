@@ -76,6 +76,11 @@ def test_presence() -> None:
     assert not away_by_wifi(["Home", None], ["Home"])
     assert away_by_persons(["not_home", "work"])
     assert not away_by_persons(["home", "not_home"])
+    # a phone or person without a known state
+    assert not away_by_wifi(["Other", "unavailable"], ["Home"], unknown_home=True)
+    assert away_by_wifi(["Other", "<not connected>"], ["Home"], unknown_home=True)
+    assert not away_by_persons(["not_home", "unknown"], unknown_home=True)
+    assert away_by_persons(["not_home", "unknown"])
 
 
 def test_warn_and_arm() -> None:

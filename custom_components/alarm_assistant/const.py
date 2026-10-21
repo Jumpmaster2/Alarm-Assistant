@@ -84,6 +84,7 @@ CONF_QUIET = "quiet_time"
 CONF_PREWARN = "prewarn_time"
 CONF_RETRY = "retry_after_disarm"
 CONF_PRESENCE_STABLE = "presence_stable"
+CONF_UNKNOWN_PRESENCE = "unknown_presence"
 
 # ---------- lock
 CONF_LOCK = "lock"
@@ -144,7 +145,7 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_CALL_TARGETS: [],
     CONF_CALL_ACK: True,
     CONF_CALL_WAIT: 50,
-    CONF_CALL_LANGUAGE: "de",
+    CONF_CALL_LANGUAGE: "auto",
     CONF_CALL_COOLDOWN: 180,
     CONF_PRESENCE_MODE: "wifi",
     CONF_WIFI_SENSORS: [],
@@ -154,6 +155,7 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_PREWARN: 5,
     CONF_RETRY: 2,
     CONF_PRESENCE_STABLE: 2,
+    CONF_UNKNOWN_PRESENCE: "home",
     CONF_DISARM_ON_UNLOCK: True,
     CONF_LOCK_ON_ARM: True,
     CONF_KIDS_RESET_AFTER: 10,

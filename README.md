@@ -35,7 +35,7 @@ Die Integration arbeitet ereignisgesteuert: Sie reagiert nur auf Zustandswechsel
 
 ### Automatisch scharf
 
-* Anwesenheit über **Personen** (Unterpunkt "Person"): Jede Person hat den WLAN-Sensor ihres Handys. Ist das Handy mit einem Heim-WLAN verbunden, ist die Person zuhause; dafür gibt es je Person einen Anwesenheitssensor. Alternativ HA-Personen (`person.*`).
+* Anwesenheit über **Personen** (Unterpunkt "Person"): Jede Person hat den WLAN-Sensor ihres Handys. Ist das Handy mit einem Heim-WLAN verbunden, ist die Person zuhause; dafür gibt es je Person einen Anwesenheitssensor. Alternativ HA-Personen (`person.*`). Ein Handy (oder eine Person) ohne bekannten Zustand, z. B. ausgeschaltet oder mit leerem Akku, zählt standardmäßig als zuhause; einstellbar unter "Handy ohne bekannten Zustand zählt als".
 * Ist niemand zuhause (seit einer Mindestzeit), war eine Weile keine Bewegung und ist "Kinder alleine zuhause" aus, kommt eine Vorwarnung. Ist danach immer noch alles erfüllt und keine Bewegung gewesen, wird scharf geschaltet. Nach einem Unscharfschalten wird erst nach einer Wartezeit wieder geprüft.
 * Abschaltbar über den Schalter **Automatisch scharf**.
 

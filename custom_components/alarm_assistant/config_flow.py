@@ -126,6 +126,7 @@ from .const import (
     CONF_TURN_ON,
     CONF_TYPE,
     CONF_UNAVAILABLE_DELAY,
+    CONF_UNKNOWN_PRESENCE,
     CONF_USE_ENTRY,
     CONF_USE_EXIT,
     CONF_VACUUM,
@@ -144,7 +145,7 @@ from .const import (
     SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
 )
-from .logic.auto_arm import PRESENCE_MODES
+from .logic.auto_arm import PRESENCE_MODES, UNKNOWN_PRESENCE
 from .logic.code import hash_code, valid_code
 from .logic.misc import WEEKDAYS
 from .logic.state_machine import SENSOR_TYPES, TYPE_WINDOW, type_defaults
@@ -159,6 +160,7 @@ SECTION_ACTIONS = "actions"
 SECTION_KIDS = "kids"
 SECTION_HINT = "hint"
 SECTION_OFF = "switch_off"
+CALL_LANGUAGES = ["auto", "de", "en"]
 
 
 def _number(key: str) -> NumberSelector:
@@ -350,7 +352,14 @@ def _call_schema(v: dict[str, Any]) -> vol.Schema:
             _req(CONF_CALL_ACK, v): BooleanSelector(),
             _req(CONF_CALL_WAIT, v): _number(CONF_CALL_WAIT),
             _opt(CONF_CALL_TTS, v): _entity(["tts"]),
-            _req(CONF_CALL_LANGUAGE, v): TextSelector(),
+            _req(CONF_CALL_LANGUAGE, v): SelectSelector(
+                SelectSelectorConfig(
+                    options=CALL_LANGUAGES,
+                    translation_key="call_language",
+                    custom_value=True,
+                    mode=SelectSelectorMode.DROPDOWN,
+                )
+            ),
             _req(CONF_CALL_COOLDOWN, v): _number(CONF_CALL_COOLDOWN),
         }
     )
@@ -367,6 +376,7 @@ def _auto_arm_schema(v: dict[str, Any]) -> vol.Schema:
             _req(CONF_PREWARN, v): _number(CONF_PREWARN),
             _req(CONF_RETRY, v): _number(CONF_RETRY),
             _req(CONF_PRESENCE_STABLE, v): _number(CONF_PRESENCE_STABLE),
+            _req(CONF_UNKNOWN_PRESENCE, v): _choice(UNKNOWN_PRESENCE, "unknown_presence"),
         }
     )
 

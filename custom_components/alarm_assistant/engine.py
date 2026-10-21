@@ -129,6 +129,7 @@ from .const import (
     CONF_TURN_ON,
     CONF_TYPE,
     CONF_UNAVAILABLE_DELAY,
+    CONF_UNKNOWN_PRESENCE,
     CONF_USE_ENTRY,
     CONF_USE_EXIT,
     CONF_VACUUM,
@@ -385,10 +386,20 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         sensors += [str(v) for v in (self.opt(CONF_WIFI_SENSORS) or []) if str(v).strip()]
         return list(dict.fromkeys(sensors))
 
+    @property
+    def unknown_home(self) -> bool:
+        """A phone or person without a known state counts as at home."""
+        return self.opt(CONF_UNKNOWN_PRESENCE) != aa.UNKNOWN_AWAY
+
+    @property
+    def call_language(self) -> str:
+        language = str(self.opt(CONF_CALL_LANGUAGE) or "").strip()
+        return self.language if language in ("", "auto") else language
+
     def person_home(self, person: Person) -> bool:
         """The phone of the person is connected to a home network."""
-        return not aa.away_by_wifi(
-            [self._value(person.wifi_sensor)], self.opt_list(CONF_HOME_NETWORKS)
+        return aa.at_home_by_wifi(
+            self._value(person.wifi_sensor), self.opt_list(CONF_HOME_NETWORKS), self.unknown_home
         )
 
     def sensor_by_entity(self, entity_id: str) -> list[Sensor]:
@@ -1246,7 +1257,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             acknowledge=bool(self.opt(CONF_CALL_ACK)),
             wait=float(self.opt(CONF_CALL_WAIT)),
             platform=str(self.opt(CONF_CALL_TTS) or ""),
-            language=str(self.opt(CONF_CALL_LANGUAGE) or "de"),
+            language=self.call_language,
         )
         self.call_acked = False
         steps = plan(settings)
@@ -1285,10 +1296,13 @@ class AlarmEngine(DataUpdateCoordinator[None]):
 
     def _away_now(self) -> bool:
         if self.opt(CONF_PRESENCE_MODE) == aa.MODE_PERSONS:
-            return aa.away_by_persons(self._value(p) for p in self.opt_list(CONF_PERSONS))
+            return aa.away_by_persons(
+                (self._value(p) for p in self.opt_list(CONF_PERSONS)), self.unknown_home
+            )
         return aa.away_by_wifi(
             (self._value(s) for s in self.wifi_sensors()),
             self.opt_list(CONF_HOME_NETWORKS),
+            self.unknown_home,
         )
 
     def _initial_away_since(self) -> datetime:

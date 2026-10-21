@@ -8,17 +8,41 @@ from dataclasses import dataclass
 MODE_WIFI = "wifi"
 MODE_PERSONS = "persons"
 PRESENCE_MODES = [MODE_WIFI, MODE_PERSONS]
+UNKNOWN_HOME = "home"
+UNKNOWN_AWAY = "away"
+UNKNOWN_PRESENCE = [UNKNOWN_HOME, UNKNOWN_AWAY]
+UNKNOWN_STATES = (None, "", "unavailable", "unknown")
 
 
-def away_by_wifi(connections: Iterable[str | None], home_networks: Iterable[str]) -> bool:
-    """Nobody is connected to a home network (an unavailable phone counts as away)."""
+def _unknown(state: str | None) -> bool:
+    return state is None or state.strip() in UNKNOWN_STATES
+
+
+def at_home_by_wifi(
+    connection: str | None, home_networks: Iterable[str], unknown_home: bool = False
+) -> bool:
+    """The phone is connected to a home network (or unknown and counted as at home)."""
+    if _unknown(connection):
+        return unknown_home
     homes = {str(n).strip() for n in home_networks if str(n).strip()}
-    return all((c or "").strip() not in homes for c in connections)
+    return str(connection).strip() in homes
 
 
-def away_by_persons(states: Iterable[str | None]) -> bool:
+def away_by_wifi(
+    connections: Iterable[str | None], home_networks: Iterable[str], unknown_home: bool = False
+) -> bool:
+    """Nobody is connected to a home network.
+
+    A phone without a known state (switched off, empty battery, app not
+    reporting) counts as at home with ``unknown_home``, else as away.
+    """
+    homes = list(home_networks)
+    return not any(at_home_by_wifi(c, homes, unknown_home) for c in connections)
+
+
+def away_by_persons(states: Iterable[str | None], unknown_home: bool = False) -> bool:
     """No person is at home."""
-    return all(s != "home" for s in states)
+    return not any(s == "home" or (unknown_home and _unknown(s)) for s in states)
 
 
 @dataclass(frozen=True)

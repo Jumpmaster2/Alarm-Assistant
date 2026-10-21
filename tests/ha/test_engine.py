@@ -314,7 +314,7 @@ async def test_automatic_arming(
     freezer.move_to(START)
     await setup_entry(hass, make_entry(**AUTO_ARM))
     await set_state(hass, WIFI_A, "Mobile")
-    await set_state(hass, WIFI_B, "unavailable")
+    await set_state(hass, WIFI_B, "<not connected>")
     # last motion 30 min ago: the presence must be stable for 2 min
     await advance(hass, freezer, 60)
     assert not any("Nobody" in c.data["message"] for c in calls["notify"])
@@ -323,6 +323,19 @@ async def test_automatic_arming(
     assert hass.states.get("binary_sensor.alarm_assistant_automatic_arming_warning").state == "on"
     await advance(hass, freezer, 5 * 60 + 30)
     assert _state(hass) == "armed_away"
+
+
+@pytest.mark.parametrize(("unknown", "armed"), [("home", False), ("away", True)])
+async def test_unknown_phone_counts_as_option(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory, unknown, armed
+) -> None:
+    """A phone that is unavailable counts as at home by default."""
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(**AUTO_ARM, unknown_presence=unknown))
+    await set_state(hass, WIFI_A, "Mobile")
+    await set_state(hass, WIFI_B, "unavailable")
+    await advance(hass, freezer, 10 * 60)
+    assert (_state(hass) == "armed_away") is armed
 
 
 async def test_automatic_arming_blocked_by_kids_and_motion(
@@ -674,7 +687,7 @@ async def test_persons_by_wifi(
     await advance(hass, freezer, 20 * 60)
     assert _state(hass) == "disarmed"
     # the last person leaves: warning, then armed
-    await set_state(hass, WIFI_B, "unavailable")
+    await set_state(hass, WIFI_B, "<not connected>")
     await advance(hass, freezer, 150)
     assert any("Nobody" in c.data["message"] for c in calls["notify"])
     await advance(hass, freezer, 5 * 60 + 30)

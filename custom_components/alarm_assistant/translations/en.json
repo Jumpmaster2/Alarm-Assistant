@@ -185,7 +185,8 @@
           "call_addon": "Slug of the add-on, e.g. 1234abcd_ha-sip. Empty = no call.",
           "call_targets": "SIP addresses or numbers, one per entry.",
           "call_acknowledge": "Every number except the last can stop the chain.",
-          "call_cooldown": "No new call chain within this time after an alarm. Push messages are always sent."
+          "call_cooldown": "No new call chain within this time after an alarm. Push messages are always sent.",
+          "call_language": "Language of the speech in the call. 'Like the messages' follows the language setting; other codes (e.g. fr) can be typed in."
         },
         "description": "Calls through the ha-sip add-on. Every number except the last one can acknowledge with key 1 (the button 'Acknowledge call' is pressed)."
       },
@@ -199,11 +200,13 @@
           "quiet_time": "No motion for",
           "prewarn_time": "Warning before arming",
           "retry_after_disarm": "Wait after disarming",
-          "presence_stable": "Away for at least"
+          "presence_stable": "Away for at least",
+          "unknown_presence": "Phone without a known state counts as"
         },
         "data_description": {
           "wifi_sensors": "Phones without a person sub item. Persons are added as sub item \"Person\".",
-          "home_networks": "Names of the networks at home."
+          "home_networks": "Names of the networks at home.",
+          "unknown_presence": "A phone that is switched off, has an empty battery or does not report (unavailable/unknown). At home is safer: the panel is not armed while someone may be at home."
         },
         "description": "Arms away when nobody is at home and there was no motion; warns before. Never while children are alone at home."
       },
@@ -505,6 +508,19 @@
         "fri": "Friday",
         "sat": "Saturday",
         "sun": "Sunday"
+      }
+    },
+    "unknown_presence": {
+      "options": {
+        "home": "At home",
+        "away": "Away"
+      }
+    },
+    "call_language": {
+      "options": {
+        "auto": "Like the messages",
+        "de": "German",
+        "en": "English"
       }
     }
   },

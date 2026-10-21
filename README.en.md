@@ -35,7 +35,7 @@ The integration is event driven: it only reacts to state changes of the configur
 
 ### Automatic arming
 
-* Presence by **persons** (sub item "Person"): every person has the Wi-Fi sensor of their phone. While the phone is connected to a home network the person is at home; each person gets a presence sensor. Alternatively Home Assistant persons (`person.*`).
+* Presence by **persons** (sub item "Person"): every person has the Wi-Fi sensor of their phone. While the phone is connected to a home network the person is at home; each person gets a presence sensor. Alternatively Home Assistant persons (`person.*`). A phone (or person) without a known state, e.g. switched off or with an empty battery, counts as at home by default; see "Phone without a known state counts as".
 * When nobody is at home (for a minimum time), there was no motion for a while and "children alone at home" is off, a warning is sent. If everything is still true afterwards and there was no motion, the panel is armed. After disarming it waits before checking again.
 * Can be switched off with the switch **Automatic arming**.
 

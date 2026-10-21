@@ -185,7 +185,8 @@
           "call_addon": "Slug des Add-ons, z. B. 1234abcd_ha-sip. Leer = kein Anruf.",
           "call_targets": "SIP-Adressen oder Nummern, je Eintrag eine.",
           "call_acknowledge": "Jede Nummer außer der letzten kann die Kette beenden.",
-          "call_cooldown": "Innerhalb dieser Zeit nach einem Alarm startet keine neue Anrufkette. Push-Meldungen kommen immer."
+          "call_cooldown": "Innerhalb dieser Zeit nach einem Alarm startet keine neue Anrufkette. Push-Meldungen kommen immer.",
+          "call_language": "Sprache der Sprachausgabe im Anruf. 'Wie die Meldungen' folgt der Spracheinstellung; andere Kürzel (z. B. fr) können eingetippt werden."
         },
         "description": "Anrufe über das ha-sip-Add-on. Jede Nummer außer der letzten kann mit Taste 1 quittieren (dabei wird der Button 'Anruf quittieren' gedrückt)."
       },
@@ -199,11 +200,13 @@
           "quiet_time": "Keine Bewegung seit",
           "prewarn_time": "Vorwarnung vor dem Scharfschalten",
           "retry_after_disarm": "Warten nach dem Unscharfschalten",
-          "presence_stable": "Abwesend seit mindestens"
+          "presence_stable": "Abwesend seit mindestens",
+          "unknown_presence": "Handy ohne bekannten Zustand zählt als"
         },
         "data_description": {
           "wifi_sensors": "Handys ohne Unterpunkt Person. Personen werden als Unterpunkt \"Person\" angelegt.",
-          "home_networks": "Namen der WLANs zuhause."
+          "home_networks": "Namen der WLANs zuhause.",
+          "unknown_presence": "Ein Handy, das aus ist, einen leeren Akku hat oder nichts meldet (nicht verfügbar/unbekannt). Zuhause ist sicherer: Es wird nicht scharf geschaltet, solange vielleicht noch jemand da ist."
         },
         "description": "Schaltet scharf, wenn niemand zuhause ist und keine Bewegung war; warnt vorher. Nie, wenn Kinder alleine zuhause sind."
       },
@@ -505,6 +508,19 @@
         "fri": "Freitag",
         "sat": "Samstag",
         "sun": "Sonntag"
+      }
+    },
+    "unknown_presence": {
+      "options": {
+        "home": "Zuhause",
+        "away": "Abwesend"
+      }
+    },
+    "call_language": {
+      "options": {
+        "auto": "Wie die Meldungen",
+        "de": "Deutsch",
+        "en": "Englisch"
       }
     }
   },

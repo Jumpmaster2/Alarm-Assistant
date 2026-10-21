@@ -156,7 +156,7 @@ export const LABELS = {
   ],
   "call_language": [
    "Sprache des Anrufs",
-   ""
+   "Sprache der Sprachausgabe im Anruf. 'Wie die Meldungen' folgt der Spracheinstellung; andere Kürzel (z. B. fr) können eingetippt werden."
   ],
   "call_cooldown": [
    "Kein neuer Anruf für",
@@ -193,6 +193,10 @@ export const LABELS = {
   "presence_stable": [
    "Abwesend seit mindestens",
    ""
+  ],
+  "unknown_presence": [
+   "Handy ohne bekannten Zustand zählt als",
+   "Ein Handy, das aus ist, einen leeren Akku hat oder nichts meldet (nicht verfügbar/unbekannt). Zuhause ist sicherer: Es wird nicht scharf geschaltet, solange vielleicht noch jemand da ist."
   ],
   "lock": [
    "Türschloss",
@@ -558,7 +562,7 @@ export const LABELS = {
   ],
   "call_language": [
    "Language of the call",
-   ""
+   "Language of the speech in the call. 'Like the messages' follows the language setting; other codes (e.g. fr) can be typed in."
   ],
   "call_cooldown": [
    "No new call for",
@@ -595,6 +599,10 @@ export const LABELS = {
   "presence_stable": [
    "Away for at least",
    ""
+  ],
+  "unknown_presence": [
+   "Phone without a known state counts as",
+   "A phone that is switched off, has an empty battery or does not report (unavailable/unknown). At home is safer: the panel is not armed while someone may be at home."
   ],
   "lock": [
    "Door lock",

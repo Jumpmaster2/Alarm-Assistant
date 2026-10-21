@@ -41,6 +41,7 @@ from .const import (
     CONF_PTZ_HOME,
     CONF_RECORD_SWITCHES,
     CONF_TYPE,
+    CONF_UNKNOWN_PRESENCE,
     CONF_USE_ENTRY,
     CONF_USE_EXIT,
     DEFAULTS,
@@ -52,7 +53,7 @@ from .const import (
     SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
 )
-from .logic.auto_arm import PRESENCE_MODES
+from .logic.auto_arm import PRESENCE_MODES, UNKNOWN_PRESENCE
 from .logic.misc import WEEKDAYS
 from .logic.state_machine import SENSOR_TYPES
 
@@ -67,6 +68,7 @@ CHOICES: dict[str, list[str]] = {
     CONF_LANGUAGE: LANGUAGE_OPTIONS,
     CONF_PRESENCE_MODE: PRESENCE_MODES,
     CONF_TYPE: SENSOR_TYPES,
+    CONF_UNKNOWN_PRESENCE: UNKNOWN_PRESENCE,
 }
 MULTI_CHOICES: dict[str, list[str]] = {CONF_NIGHT_OFF_DAYS: WEEKDAYS}
 TIME_KEYS = (CONF_KIDS_RESET_TIME, CONF_NIGHT_OFF_TIME)
