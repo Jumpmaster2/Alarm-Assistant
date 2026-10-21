@@ -173,6 +173,8 @@ PAUSE_PTZ = 3
 FRIGATE_RESYNC = 10
 FRIGATE_RESYNC_MAX = 3
 FRIGATE_RESYNC_WINDOW = timedelta(minutes=10)
+# Reaction sequences of an alarm that end with disarming.
+ALARM_TASKS = ("call", "siren", "announce", "announce_pending", "reactions")
 
 
 async def _sleep(seconds: float) -> None:
@@ -582,6 +584,16 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             handler(now)
 
         self._timers[key] = async_track_point_in_time(self.hass, fire, when)
+
+    def _stop_tasks(self, keys: Iterable[str]) -> list[str]:
+        """Cancel running reaction sequences, return the keys that were running."""
+        stopped = []
+        for key in keys:
+            task = self._tasks.pop(key, None)
+            if task is not None and not task.done():
+                task.cancel()
+                stopped.append(key)
+        return stopped
 
     def _cancel(self, key: str) -> None:
         if (old := self._timers.pop(key, None)) is not None:
@@ -1006,6 +1018,13 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         self.trip_names = []
         self.disarmed_since = dt_util.utcnow()
         self._log("log_disarmed_lock" if by_lock else "log_disarmed")
+        # calls, sound and announcements of a running alarm end with disarming
+        if "siren" in self._stop_tasks(ALARM_TASKS):
+            players = self._filter("volume", self.opt_list(CONF_VOLUME_PLAYERS))
+            if players:
+                self._task(
+                    "volume_reset", self._async_volume(players, float(self.opt(CONF_RESET_VOLUME)))
+                )
         for entity_id in self._filter("armed_on", self.opt_list(CONF_ARM_ON_ENTITIES)):
             self.hass.async_create_task(
                 self._async_call("homeassistant", "turn_off", {"entity_id": entity_id})
@@ -1155,7 +1174,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         self.call_acked = False
         steps = plan(settings)
         for index, (target, ack) in enumerate(steps):
-            if index > 0 and self.call_acked:
+            if index > 0 and (self.call_acked or self.state == sm.DISARMED):
                 break
             self._log("log_call", target=f"#{index + 1}")
             data = dial_input(

@@ -353,6 +353,29 @@ async def test_call_chain_with_acknowledge(
     assert len(calls["stdin"]) == 3
 
 
+async def test_disarm_stops_call_chain_and_siren(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory, no_pauses
+) -> None:
+    """Disarming during the alarm: no further calls, the volume goes back."""
+    freezer.move_to(START)
+    entry = make_entry(
+        **REACTIONS, call_addon="sip_addon", call_targets=["sip:1@x", "sip:2@x", "sip:3@x"]
+    )
+    await setup_entry(hass, entry)
+
+    async def disarm_while_waiting(seconds: float) -> None:
+        if seconds == 50:
+            entry.runtime_data.disarm()
+
+    no_pauses.side_effect = disarm_while_waiting
+    await _arm(hass)
+    await set_state(hass, WINDOW, "on")
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert _state(hass) == "disarmed"
+    assert [c.data["input"]["number"] for c in calls["stdin"]] == ["sip:1@x"]
+    assert calls["volume"][-1].data["volume_level"] == 0.2
+
+
 async def test_state_survives_reload(
     hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
 ) -> None:
