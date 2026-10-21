@@ -30,7 +30,7 @@ Die Integration arbeitet ereignisgesteuert: Sie reagiert nur auf Zustandswechsel
 * Durchsage an Benachrichtigungs-Entitäten (z. B. Alexa-Durchsage überall) mit eigenem Text, ebenso bei Beginn der Eingangsverzögerung.
 * Alarmton: Lautstärke hoch, Sound auf Alexa-Geräten, gesprochener Text, Lautstärke nach einer Zeit zurück.
 * Lichter und Schalter einschalten, Rollos schließen.
-* **Telefonanruf** über das ha-sip-Add-on: Nummern der Reihe nach. Jede Nummer außer der letzten kann mit Taste 1 quittieren (der Button "Anruf quittieren" wird gedrückt), dann wird niemand mehr angerufen. Der erste Anruf startet vor den Push-Nachrichten. Innerhalb der Sperrzeit gibt es keinen neuen Anruf. Unscharf schalten beendet die Anrufkette, Alarmton und Durchsagen sofort, die Lautstärke wird zurückgesetzt.
+* **Telefonanruf** über das ha-sip-Add-on: Nummern der Reihe nach. Jede Nummer außer der letzten kann mit Taste 1 quittieren (der Button "Anruf quittieren" wird gedrückt), dann wird niemand mehr angerufen. Der erste Anruf startet vor den Push-Nachrichten. Innerhalb der Sperrzeit gibt es keinen neuen Anruf; Push-Meldungen kommen bei jedem Alarm. Unscharf schalten beendet die Anrufkette, Alarmton und Durchsagen sofort, die Lautstärke wird zurückgesetzt.
 * Push an die Handys und zusätzliche Dienste (z. B. Pushover) mit der **Ursache**: die auslösenden Sensoren und, wenn eine Kamera gerade eine Person sieht, auch diese.
 
 ### Automatisch scharf

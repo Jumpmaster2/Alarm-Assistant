@@ -177,7 +177,7 @@
           "call_addon": "Slug des Add-ons, z. B. 1234abcd_ha-sip. Leer = kein Anruf.",
           "call_targets": "SIP-Adressen oder Nummern, je Eintrag eine.",
           "call_acknowledge": "Jede Nummer außer der letzten kann die Kette beenden.",
-          "call_cooldown": "Anruf und Alarm-Push werden innerhalb dieser Zeit nicht wiederholt."
+          "call_cooldown": "Innerhalb dieser Zeit nach einem Alarm startet keine neue Anrufkette. Push-Meldungen kommen immer."
         },
         "description": "Anrufe über das ha-sip-Add-on. Jede Nummer außer der letzten kann mit Taste 1 quittieren (dabei wird der Button 'Anruf quittieren' gedrückt)."
       },

@@ -177,7 +177,7 @@ FRIGATE_RESYNC_WINDOW = timedelta(minutes=10)
 # Every this many wrong codes in a row a message is sent.
 WRONG_CODE_ALERT = 5
 # Reaction sequences of an alarm that end with disarming.
-ALARM_TASKS = ("call", "siren", "announce", "announce_pending", "reactions")
+ALARM_TASKS = ("call", "push", "siren", "announce", "announce_pending", "reactions")
 
 
 async def _sleep(seconds: float) -> None:
@@ -1139,9 +1139,13 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             ),
         )
         self._task("reactions", self._async_reactions())
-        if self.call_block_until is None or now >= self.call_block_until:
+        # the cool down only blocks a new call chain, the push is always sent
+        call = self.call_block_until is None or now >= self.call_block_until
+        if call and self.call_configured:
             self.call_block_until = now + timedelta(seconds=float(self.opt(CONF_CALL_COOLDOWN)))
-            self._task("call", self._async_alarm_messages(cause), restart=True)
+        self._task(
+            "call" if call else "push", self._async_alarm_messages(cause, call), restart=True
+        )
 
     def _trigger_over(self, now: datetime) -> None:
         if self.state != sm.TRIGGERED:
@@ -1190,10 +1194,10 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             "button", DOMAIN, f"{self.config_entry.entry_id}_call_acknowledge"
         )
 
-    async def _async_alarm_messages(self, cause: str) -> None:
+    async def _async_alarm_messages(self, cause: str, call_allowed: bool = True) -> None:
         """Phone call chain and push messages (the first call starts before the push)."""
         targets = self._filter("call", self.opt_list(CONF_CALL_TARGETS))
-        call = self.call_configured and bool(targets)
+        call = call_allowed and self.call_configured and bool(targets)
         message = self._mark(self.t("push_triggered", cause=cause))
         push = message + (self.t("push_call_started") if call else "")
         title = self._mark(self.t("title_alarm"))

@@ -177,7 +177,7 @@
           "call_addon": "Slug of the add-on, e.g. 1234abcd_ha-sip. Empty = no call.",
           "call_targets": "SIP addresses or numbers, one per entry.",
           "call_acknowledge": "Every number except the last can stop the chain.",
-          "call_cooldown": "Calls and alarm push are not repeated within this time."
+          "call_cooldown": "No new call chain within this time after an alarm. Push messages are always sent."
         },
         "description": "Calls through the ha-sip add-on. Every number except the last one can acknowledge with key 1 (the button 'Acknowledge call' is pressed)."
       },

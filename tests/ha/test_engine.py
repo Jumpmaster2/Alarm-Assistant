@@ -367,12 +367,15 @@ async def test_call_chain_with_acknowledge(
     first = calls["stdin"][0].data["input"]["menu"]
     assert first["choices"]["1"]["action"]["entity_id"] == ACK
     assert "Calling now" in calls["notify"][-1].data["message"]
-    # second alarm within the cooldown: no new call
+    # second alarm within the cooldown: no new call, but the push
+    pushes = len(calls["pushover"])
     await _disarm(hass)
     await set_state(hass, WINDOW, "off")
     await _arm(hass)
     await set_state(hass, WINDOW, "on")
     assert len(calls["stdin"]) == 2
+    assert len(calls["pushover"]) == pushes + 1
+    assert "Calling now" not in calls["notify"][-1].data["message"]
     # after the cooldown, acknowledged call stops the chain
     await _disarm(hass)
     await advance(hass, freezer, 200)

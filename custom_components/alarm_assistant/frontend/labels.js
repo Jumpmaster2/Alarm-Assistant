@@ -152,7 +152,7 @@ export const LABELS = {
   ],
   "call_cooldown": [
    "Kein neuer Anruf für",
-   "Anruf und Alarm-Push werden innerhalb dieser Zeit nicht wiederholt."
+   "Innerhalb dieser Zeit nach einem Alarm startet keine neue Anrufkette. Push-Meldungen kommen immer."
   ],
   "presence_mode": [
    "Anwesenheit über",
@@ -546,7 +546,7 @@ export const LABELS = {
   ],
   "call_cooldown": [
    "No new call for",
-   "Calls and alarm push are not repeated within this time."
+   "No new call chain within this time after an alarm. Push messages are always sent."
   ],
   "presence_mode": [
    "Presence by",
