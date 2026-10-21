@@ -28,7 +28,7 @@ The integration is event driven: it only reacts to state changes of the configur
 ### On alarm
 
 * Announcement to notify entities (e.g. Alexa announcement everywhere) with an own text, also when the entry delay starts.
-* Alarm sound: volume up, sound on Alexa devices, spoken text, volume back after a while.
+* Alarm sound: volume up, siren entities (`siren.*`) on, sound on Alexa devices and/or a sound file (e.g. `media-source://media_source/local/alarm.mp3`) on the speakers, spoken text, volume back after a while. Sirens go off when disarmed and after the trigger time. Alexa is not required.
 * Turn on lights and switches, close covers.
 * **Phone call** through the ha-sip add-on: numbers in order. Every number except the last can acknowledge with key 1 (the button "Acknowledge call" is pressed), then nobody else is called. The first call starts before the push messages. No new call within the cool down; push messages are sent for every alarm. Disarming ends the call chain, the alarm sound and the announcements at once and resets the volume.
 * Push to the phones and additional services (e.g. Pushover) with the **cause**: the sensors that tripped and, if a camera sees a person right now, that one too.

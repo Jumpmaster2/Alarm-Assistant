@@ -28,7 +28,7 @@ Die Integration arbeitet ereignisgesteuert: Sie reagiert nur auf Zustandswechsel
 ### Bei Alarm
 
 * Durchsage an Benachrichtigungs-Entitäten (z. B. Alexa-Durchsage überall) mit eigenem Text, ebenso bei Beginn der Eingangsverzögerung.
-* Alarmton: Lautstärke hoch, Sound auf Alexa-Geräten, gesprochener Text, Lautstärke nach einer Zeit zurück.
+* Alarmton: Lautstärke hoch, Sirenen-Entitäten (`siren.*`) an, Sound auf Alexa-Geräten und/oder eine Ton-Datei (z. B. `media-source://media_source/local/alarm.mp3`) auf den Lautsprechern, gesprochener Text, Lautstärke nach einer Zeit zurück. Sirenen gehen beim Unscharfschalten und nach der Auslösezeit aus. Alexa ist damit nicht mehr nötig.
 * Lichter und Schalter einschalten, Rollos schließen.
 * **Telefonanruf** über das ha-sip-Add-on: Nummern der Reihe nach. Jede Nummer außer der letzten kann mit Taste 1 quittieren (der Button "Anruf quittieren" wird gedrückt), dann wird niemand mehr angerufen. Der erste Anruf startet vor den Push-Nachrichten. Innerhalb der Sperrzeit gibt es keinen neuen Anruf; Push-Meldungen kommen bei jedem Alarm. Unscharf schalten beendet die Anrufkette, Alarmton und Durchsagen sofort, die Lautstärke wird zurückgesetzt.
 * Push an die Handys und zusätzliche Dienste (z. B. Pushover) mit der **Ursache**: die auslösenden Sensoren und, wenn eine Kamera gerade eine Person sieht, auch diese.

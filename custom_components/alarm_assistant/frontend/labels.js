@@ -114,13 +114,21 @@ export const LABELS = {
    "Lautstärke zurück nach",
    ""
   ],
+  "sirens": [
+   "Sirenen",
+   "Sirenen-Entitäten (z. B. Zigbee-Sirenen). Bei Alarm an, aus beim Unscharfschalten oder nach der Auslösezeit."
+  ],
   "sound_devices": [
    "Alexa-Geräte für den Alarmton",
    ""
   ],
   "sound": [
    "Alarmton",
-   "Sound-Name von Alexa Devices."
+   "Sound-Name der Integration Alexa Devices, z. B. amzn_sfx_scifi_alarm_04. Nur für Alexa-Geräte."
+  ],
+  "sound_media": [
+   "Alarmton-Datei auf den Lautsprechern",
+   "Wird auf den Lautsprechern für die Lautstärke abgespielt, z. B. media-source://media_source/local/alarm.mp3 oder eine URL. Leer = keine Datei."
   ],
   "speak_services": [
    "Gesprochener Text",
@@ -229,6 +237,10 @@ export const LABELS = {
   "night_volume_players": [
    "Lautsprecher für Lautstärke",
    ""
+  ],
+  "night_sirens": [
+   "Sirenen",
+   "An, wenn die Tür aufgeht, aus nach 'Lautstärke zurück nach'."
   ],
   "night_sound_devices": [
    "Alexa-Geräte für den Alarmton",
@@ -520,13 +532,21 @@ export const LABELS = {
    "Reset volume after",
    ""
   ],
+  "sirens": [
+   "Sirens",
+   "Siren entities (e.g. Zigbee sirens). On at the alarm, off when disarmed or the trigger time is over."
+  ],
   "sound_devices": [
    "Alexa devices for the alarm sound",
    ""
   ],
   "sound": [
    "Alarm sound",
-   "Sound name of Alexa Devices."
+   "Sound name of the Alexa Devices integration, e.g. amzn_sfx_scifi_alarm_04. Only used with Alexa devices."
+  ],
+  "sound_media": [
+   "Alarm sound file on the speakers",
+   "Played on the speakers for volume, e.g. media-source://media_source/local/alarm.mp3 or a URL. Empty = no file."
   ],
   "speak_services": [
    "Spoken text",
@@ -635,6 +655,10 @@ export const LABELS = {
   "night_volume_players": [
    "Speakers for volume",
    ""
+  ],
+  "night_sirens": [
+   "Sirens",
+   "On when the door opens, off after 'Reset volume after'."
   ],
   "night_sound_devices": [
    "Alexa devices for the alarm sound",

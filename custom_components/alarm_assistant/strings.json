@@ -149,13 +149,17 @@
               "alarm_volume": "Alarm volume",
               "reset_volume": "Volume afterwards",
               "reset_volume_after": "Reset volume after",
+              "sirens": "Sirens",
               "sound_devices": "Alexa devices for the alarm sound",
               "sound": "Alarm sound",
+              "sound_media": "Alarm sound file on the speakers",
               "speak_services": "Spoken text"
             },
             "data_description": {
-              "sound": "Sound name of Alexa Devices.",
-              "speak_services": "Notify services that speak the alarm text (e.g. Alexa Media)."
+              "sound": "Sound name of the Alexa Devices integration, e.g. amzn_sfx_scifi_alarm_04. Only used with Alexa devices.",
+              "speak_services": "Notify services that speak the alarm text (e.g. Alexa Media).",
+              "sirens": "Siren entities (e.g. Zigbee sirens). On at the alarm, off when disarmed or the trigger time is over.",
+              "sound_media": "Played on the speakers for volume, e.g. media-source://media_source/local/alarm.mp3 or a URL. Empty = no file."
             }
           },
           "actions": {
@@ -230,6 +234,7 @@
           "night_tag": "NFC tag ID",
           "night_turn_on_entities": "Turn on",
           "night_volume_players": "Speakers for volume",
+          "night_sirens": "Sirens",
           "night_sound_devices": "Alexa devices for the alarm sound",
           "night_speak_services": "Spoken text",
           "night_text": "Text",
@@ -239,7 +244,8 @@
           "night_door_sensor": "Empty = no door alarm.",
           "night_tag": "Scanning switches the door alarm on and off.",
           "night_turn_on_entities": "Lights at 100 %.",
-          "night_text": "Empty = standard text."
+          "night_text": "Empty = standard text.",
+          "night_sirens": "On when the door opens, off after 'Reset volume after'."
         },
         "description": "Separate from the alarm panel: when switched on, opening the door sounds locally (no call, no push).",
         "sections": {

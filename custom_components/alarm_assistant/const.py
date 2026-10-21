@@ -57,6 +57,8 @@ CONF_ANNOUNCE_ENTITIES = "announce_entities"
 CONF_SPEAK_SERVICES = "speak_services"
 CONF_SOUND_DEVICES = "sound_devices"
 CONF_SOUND = "sound"
+CONF_SIRENS = "sirens"
+CONF_SOUND_MEDIA = "sound_media"
 CONF_VOLUME_PLAYERS = "volume_players"
 CONF_ALARM_VOLUME = "alarm_volume"
 CONF_RESET_VOLUME = "reset_volume"
@@ -103,6 +105,7 @@ CONF_NIGHT_OFF_TIME = "night_off_time"
 CONF_NIGHT_OFF_DAYS = "night_off_days"
 CONF_NIGHT_TURN_ON = "night_turn_on_entities"
 CONF_NIGHT_SOUND_DEVICES = "night_sound_devices"
+CONF_NIGHT_SIRENS = "night_sirens"
 CONF_NIGHT_VOLUME_PLAYERS = "night_volume_players"
 CONF_NIGHT_SPEAK = "night_speak_services"
 CONF_NIGHT_TEXT = "night_text"
@@ -136,6 +139,7 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_SPEAK_SERVICES: [],
     CONF_SOUND_DEVICES: [],
     CONF_SOUND: "amzn_sfx_scifi_alarm_04",
+    CONF_SIRENS: [],
     CONF_VOLUME_PLAYERS: [],
     CONF_ALARM_VOLUME: 0.51,
     CONF_RESET_VOLUME: 0.2,
@@ -164,6 +168,7 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_NIGHT_OFF_DAYS: ["mon", "tue", "wed", "thu", "fri"],
     CONF_NIGHT_TURN_ON: [],
     CONF_NIGHT_SOUND_DEVICES: [],
+    CONF_NIGHT_SIRENS: [],
     CONF_NIGHT_VOLUME_PLAYERS: [],
     CONF_NIGHT_SPEAK: [],
     CONF_NIGHT_OFF_SPEAK: [],
@@ -181,6 +186,7 @@ OPTIONAL_TEXT_KEYS: Final = (
     CONF_FAULT_SENSOR,
     CONF_TEXT_TRIGGERED,
     CONF_TEXT_PENDING,
+    CONF_SOUND_MEDIA,
     CONF_CALL_ADDON,
     CONF_CALL_TTS,
     CONF_LOCK,

@@ -90,6 +90,7 @@ from .const import (
     CONF_NIGHT_OFF_VOLUME,
     CONF_NIGHT_OFF_VOLUME_PLAYERS,
     CONF_NIGHT_RESET_AFTER,
+    CONF_NIGHT_SIRENS,
     CONF_NIGHT_SOUND_DEVICES,
     CONF_NIGHT_SPEAK,
     CONF_NIGHT_TAG,
@@ -120,8 +121,10 @@ from .const import (
     CONF_RESET_AFTER,
     CONF_RESET_VOLUME,
     CONF_RETRY,
+    CONF_SIRENS,
     CONF_SOUND,
     CONF_SOUND_DEVICES,
+    CONF_SOUND_MEDIA,
     CONF_SPEAK_SERVICES,
     CONF_TEXT_PENDING,
     CONF_TEXT_TRIGGERED,
@@ -1093,6 +1096,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     def disarm(self, by_lock: bool = False) -> None:
         if self.state == sm.DISARMED:
             return
+        if self.state == sm.TRIGGERED:
+            self._sirens_off()
         self.lock_sent = None
         for key in ("exit", "entry", "trigger_end", "lock_retry"):
             self._cancel(key)
@@ -1182,6 +1187,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 devices=self._filter("sound", self.opt_list(CONF_SOUND_DEVICES)),
                 speak=self._filter("speak", self.opt_list(CONF_SPEAK_SERVICES)),
                 message=text_triggered,
+                sirens=self._filter("sirens", self.opt_list(CONF_SIRENS)),
+                media=self.opt(CONF_SOUND_MEDIA) if self._filter("sound", ["media"]) else None,
             ),
         )
         self._task("reactions", self._async_reactions())
@@ -1197,6 +1204,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         if self.state != sm.TRIGGERED:
             return
         self._log("log_trigger_end")
+        self._sirens_off()
         if sm.state_after_trigger(bool(self.opt(CONF_DISARM_AFTER_TRIGGER))) == sm.DISARMED:
             self.disarm()
             return
@@ -1220,20 +1228,40 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         speak: list[str],
         message: str,
         turn_on: list[str] | None = None,
+        sirens: list[str] | None = None,
+        media: str | None = None,
+        sirens_off_after: bool = False,
     ) -> None:
-        """Volume up, alarm sound, spoken message, volume back."""
+        """Volume up, sirens, alarm sound, spoken message, volume back."""
         await self._async_volume(players, volume)
         if turn_on:
             await self._async_turn_on(turn_on, light_brightness=100)
+        if sirens:
+            await self._async_call("siren", "turn_on", {"entity_id": sirens})
         if players or turn_on:
             await _sleep(PAUSE_SOUND)
         await self._async_sound(devices, str(self.opt(CONF_SOUND)))
-        if devices:
+        if players and media:
+            await self._async_call(
+                "media_player",
+                "play_media",
+                {"entity_id": players, "media_content_id": media, "media_content_type": "music"},
+            )
+        if devices or (players and media):
             await _sleep(PAUSE_SOUND)
         await self._async_speak(speak, message)
-        if players:
+        off = bool(sirens) and sirens_off_after
+        if players or off:
             await _sleep(reset_after)
+        if players:
             await self._async_volume(players, reset_volume)
+        if off:
+            await self._async_call("siren", "turn_off", {"entity_id": sirens})
+
+    def _sirens_off(self) -> None:
+        """The alarm is over: switch the sirens off (also those left out in a test)."""
+        if sirens := self.opt_list(CONF_SIRENS):
+            self._task("sirens_off", self._async_call("siren", "turn_off", {"entity_id": sirens}))
 
     def _ack_entity(self) -> str | None:
         return er.async_get(self.hass).async_get_entity_id(
@@ -1531,6 +1559,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 speak=self.opt_list(CONF_NIGHT_SPEAK),
                 message=self.opt(CONF_NIGHT_TEXT) or self.t("announce_night_door"),
                 turn_on=self.opt_list(CONF_NIGHT_TURN_ON),
+                sirens=self.opt_list(CONF_NIGHT_SIRENS),
+                sirens_off_after=True,
             ),
         )
 

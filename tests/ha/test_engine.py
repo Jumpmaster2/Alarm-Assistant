@@ -817,3 +817,35 @@ async def test_unavailable_sensor_is_reported_while_armed(
     assert len(reports) == 1
     assert "Kitchen window" in reports[0].data["message"]
     assert _state(hass) == "armed_away"
+
+
+async def test_sirens_and_sound_file(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    """Alarm sound without Alexa: siren entities and a file on the speakers."""
+    freezer.move_to(START)
+    media = "media-source://media_source/local/alarm.mp3"
+    options = {
+        "sirens": ["siren.hall"],
+        "volume_players": ["media_player.kitchen"],
+        "sound_media": media,
+    }
+    await setup_entry(hass, make_entry(**options))
+    await _arm(hass)
+    await set_state(hass, WINDOW, "on")
+    assert calls["siren_on"][0].data["entity_id"] == ["siren.hall"]
+    assert calls["play_media"][0].data["media_content_id"] == media
+    assert calls["sound"] == []
+    await _disarm(hass)
+    assert calls["siren_off"][-1].data["entity_id"] == ["siren.hall"]
+
+
+async def test_night_door_sirens_switch_off(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(night_door_sensor=DOOR, night_sirens=["siren.hall"]))
+    await hass.services.async_call("switch", "turn_on", {"entity_id": NIGHT}, blocking=True)
+    await set_state(hass, DOOR, "on")
+    assert calls["siren_on"][0].data["entity_id"] == ["siren.hall"]
+    assert calls["siren_off"][0].data["entity_id"] == ["siren.hall"]

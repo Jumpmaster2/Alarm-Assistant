@@ -149,13 +149,17 @@
               "alarm_volume": "Alarm-Lautstärke",
               "reset_volume": "Lautstärke danach",
               "reset_volume_after": "Lautstärke zurück nach",
+              "sirens": "Sirenen",
               "sound_devices": "Alexa-Geräte für den Alarmton",
               "sound": "Alarmton",
+              "sound_media": "Alarmton-Datei auf den Lautsprechern",
               "speak_services": "Gesprochener Text"
             },
             "data_description": {
-              "sound": "Sound-Name von Alexa Devices.",
-              "speak_services": "Benachrichtigungsdienste, die den Alarmtext sprechen (z. B. Alexa Media)."
+              "sound": "Sound-Name der Integration Alexa Devices, z. B. amzn_sfx_scifi_alarm_04. Nur für Alexa-Geräte.",
+              "speak_services": "Benachrichtigungsdienste, die den Alarmtext sprechen (z. B. Alexa Media).",
+              "sirens": "Sirenen-Entitäten (z. B. Zigbee-Sirenen). Bei Alarm an, aus beim Unscharfschalten oder nach der Auslösezeit.",
+              "sound_media": "Wird auf den Lautsprechern für die Lautstärke abgespielt, z. B. media-source://media_source/local/alarm.mp3 oder eine URL. Leer = keine Datei."
             }
           },
           "actions": {
@@ -230,6 +234,7 @@
           "night_tag": "NFC-Tag-ID",
           "night_turn_on_entities": "Einschalten",
           "night_volume_players": "Lautsprecher für Lautstärke",
+          "night_sirens": "Sirenen",
           "night_sound_devices": "Alexa-Geräte für den Alarmton",
           "night_speak_services": "Gesprochener Text",
           "night_text": "Text",
@@ -239,7 +244,8 @@
           "night_door_sensor": "Leer = kein Türalarm.",
           "night_tag": "Scannen schaltet den Türalarm an und aus.",
           "night_turn_on_entities": "Lichter auf 100 %.",
-          "night_text": "Leer = Standardtext."
+          "night_text": "Leer = Standardtext.",
+          "night_sirens": "An, wenn die Tür aufgeht, aus nach 'Lautstärke zurück nach'."
         },
         "description": "Unabhängig von der Alarmzentrale: eingeschaltet ertönt beim Öffnen der Tür ein lokaler Alarm (kein Anruf, kein Push).",
         "sections": {
