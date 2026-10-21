@@ -34,12 +34,14 @@
         "data_description": {
           "entry_delay": "Time to disarm after a delayed sensor (door, motion) tripped.",
           "exit_delay": "0 = armed immediately.",
-          "trigger_time": "How long the alarm stays triggered.",
+          "trigger_time": "How long the alarm stays triggered (sirens, state ALARM). Example: 1800 s = 30 min. 0 ends the alarm at once (not recommended).",
           "disarm_after_trigger": "Off: armed again afterwards.",
           "armed_on_entities": "Turned on when armed, off when disarmed (e.g. camera motion detection).",
           "code": "4 to 10 digits. Needed to disarm. Leave empty for no code.",
           "notify_unavailable": "Push when a sensor is unavailable while armed (empty battery, radio problem, sabotage).",
-          "unavailable_delay": "Short drop-outs within this time are not reported. 0 = report at once."
+          "unavailable_delay": "Short drop-outs within this time are not reported. 0 = report at once.",
+          "code_arm_required": "Off: arming works without the code, only disarming needs it.",
+          "code_confirm": "Enter the same code again."
         }
       }
     },
@@ -100,12 +102,15 @@
         "data_description": {
           "entry_delay": "Time to disarm after a delayed sensor (door, motion) tripped.",
           "exit_delay": "0 = armed immediately.",
-          "trigger_time": "How long the alarm stays triggered.",
+          "trigger_time": "How long the alarm stays triggered (sirens, state ALARM). Example: 1800 s = 30 min. 0 ends the alarm at once (not recommended).",
           "disarm_after_trigger": "Off: armed again afterwards.",
           "armed_on_entities": "Turned on when armed, off when disarmed (e.g. camera motion detection).",
           "new_code": "4 to 10 digits. Leave empty to keep the current code.",
           "notify_unavailable": "Push when a sensor is unavailable while armed (empty battery, radio problem, sabotage).",
-          "unavailable_delay": "Short drop-outs within this time are not reported. 0 = report at once."
+          "unavailable_delay": "Short drop-outs within this time are not reported. 0 = report at once.",
+          "code_arm_required": "Off: arming works without the code, only disarming needs it.",
+          "remove_code": "On: the code is deleted, disarming works without a code afterwards.",
+          "code_confirm": "Enter the same code again."
         },
         "description": "Code set: {code}"
       },
@@ -122,7 +127,8 @@
           "vacuum": "Motion does not count while it cleans or returns.",
           "vacuum_charging": "Used by the camera rules.",
           "fault_sensor": "While on (or unavailable) motion does not count, e.g. when the vacuum bridge fails.",
-          "notify_suppressed_motion": "Technical notification for every motion while armed and the fault sensor is on."
+          "notify_suppressed_motion": "Technical notification for every motion while armed and the fault sensor is on.",
+          "dock_grace": "Motion does not count for this time after docking (the robot often still moves). Example: 120 s."
         }
       },
       "reactions": {
@@ -157,9 +163,14 @@
             },
             "data_description": {
               "sound": "Sound name of the Alexa Devices integration, e.g. amzn_sfx_scifi_alarm_04. Only used with Alexa devices.",
-              "speak_services": "Notify services that speak the alarm text (e.g. Alexa Media).",
+              "speak_services": "Notify services that speak the alarm text, e.g. notify.alexa_media_kitchen. TTS = text-to-speech.",
               "sirens": "Siren entities (e.g. Zigbee sirens). On at the alarm, off when disarmed or the trigger time is over.",
-              "sound_media": "Played on the speakers for volume, e.g. media-source://media_source/local/alarm.mp3 or a URL. Empty = no file."
+              "sound_media": "Played on the speakers for volume, e.g. media-source://media_source/local/alarm.mp3 or a URL. Empty = no file.",
+              "volume_players": "Speakers whose volume is raised for the alarm; the alarm sound file plays on them too.",
+              "alarm_volume": "0 = mute, 1 = maximum. Example: 0.7.",
+              "reset_volume": "Volume set after the alarm sound (0 to 1).",
+              "reset_volume_after": "Time from the alarm sound until the volume is set back.",
+              "sound_devices": "Echo devices of the Alexa Devices integration that play the alarm sound. Leave empty without Alexa."
             }
           },
           "actions": {
@@ -169,10 +180,12 @@
               "close_covers": "Close covers"
             },
             "data_description": {
-              "turn_on_entities": "Lights, switches, cameras."
+              "turn_on_entities": "Lights, switches or scenes turned on at the alarm.",
+              "close_covers": "Covers that are closed on alarm."
             }
           }
-        }
+        },
+        "data_description": {}
       },
       "call": {
         "title": "Phone call",
@@ -186,11 +199,13 @@
           "call_cooldown": "No new call for"
         },
         "data_description": {
-          "call_addon": "Slug of the add-on, e.g. 1234abcd_ha-sip. Empty = no call.",
-          "call_targets": "SIP addresses or numbers, one per entry.",
+          "call_addon": "Slug = internal name of the ha-sip add-on, shown in the address bar under Settings › Add-ons › ha-sip (e.g. 1234abcd_ha-sip). Empty = no call. Needs Home Assistant OS or Supervised.",
+          "call_targets": "Phone numbers or SIP addresses (internet telephony), one per entry, e.g. +441234567890 or sip:**610@fritz.box. Order = call order.",
           "call_acknowledge": "Every number except the last can stop the chain.",
           "call_cooldown": "No new call chain within this time after an alarm. Push messages are always sent.",
-          "call_language": "Language of the speech in the call. 'Like the messages' follows the language setting; other codes (e.g. fr) can be typed in."
+          "call_language": "Language of the speech in the call. 'Like the messages' follows the language setting; other codes (e.g. fr) can be typed in.",
+          "call_wait": "Time between two calls so the callee can acknowledge. Example: 50 s.",
+          "call_tts": "TTS entity (text-to-speech) ha-sip uses to speak the text. Empty = default of the add-on."
         },
         "description": "Calls through the ha-sip add-on. Every number except the last one can acknowledge with key 1 (the button 'Acknowledge call' is pressed)."
       },
@@ -208,9 +223,15 @@
           "unknown_presence": "Phone without a known state counts as"
         },
         "data_description": {
-          "wifi_sensors": "Phones without a person sub item. Persons are added as sub item \"Person\".",
-          "home_networks": "Names of the networks at home.",
-          "unknown_presence": "A phone that is switched off, has an empty battery or does not report (unavailable/unknown). At home is safer: the panel is not armed while someone may be at home."
+          "wifi_sensors": "Sensors with the name of the connected network (companion app: sensor.<phone>_wifi_connection) for phones without a person sub item.",
+          "home_networks": "Names (SSID) of the networks at home, exactly as the Wi-Fi sensor reports them, e.g. MyWifi.",
+          "unknown_presence": "A phone that is switched off, has an empty battery or does not report (unavailable/unknown). At home is safer: the panel is not armed while someone may be at home.",
+          "presence_mode": "Wi-Fi of the phones: by the person sub items or Wi-Fi sensors of the companion app. Persons: by the Home Assistant persons (person.*).",
+          "persons": "Only for the mode persons: everybody who can be at home.",
+          "quiet_time": "No motion may be reported for this time before the warning starts. Example: 10 min.",
+          "prewarn_time": "Time between the warning (push) and arming. Example: 5 min.",
+          "retry_after_disarm": "After disarming, no automatic arming for this time.",
+          "presence_stable": "Everybody must be away for at least this time (filters short Wi-Fi drop-outs)."
         },
         "description": "Arms away when nobody is at home and there was no motion; warns before. Never while children are alone at home."
       },
@@ -224,7 +245,9 @@
         },
         "data_description": {
           "lock_door_sensor": "Locked only when the door is closed.",
-          "lock_on_arm": "Not while children are alone at home."
+          "lock_on_arm": "Lock when armed (not while children are alone at home).",
+          "lock": "Smart door lock. Empty = no lock functions.",
+          "disarm_on_unlock": "Unlocking or opening the lock disarms without a code. States after a lost connection do not count."
         }
       },
       "night_door": {
@@ -242,10 +265,14 @@
         },
         "data_description": {
           "night_door_sensor": "Empty = no door alarm.",
-          "night_tag": "Scanning switches the door alarm on and off.",
+          "night_tag": "ID of the NFC tag (Settings › Tags). Scanning switches the door alarm on and off.",
           "night_turn_on_entities": "Lights at 100 %.",
           "night_text": "Empty = standard text.",
-          "night_sirens": "On when the door opens, off after 'Reset volume after'."
+          "night_sirens": "On when the door opens, off after 'Reset volume after'.",
+          "night_volume_players": "Speakers whose volume is raised for the door alarm.",
+          "night_sound_devices": "Echo devices (Alexa Devices) for the alarm sound.",
+          "night_speak_services": "Notify services that speak the text.",
+          "night_reset_volume_after": "Afterwards the volume is set back and the sirens go off."
         },
         "description": "Separate from the alarm panel: when switched on, opening the door sounds locally (no call, no push).",
         "sections": {
@@ -257,6 +284,13 @@
               "night_off_speak_services": "Announce when switched off by tag",
               "night_off_volume_players": "Speakers for this announcement",
               "night_off_volume": "Volume of this announcement"
+            },
+            "data_description": {
+              "night_off_time": "Time when the door alarm switches off automatically.",
+              "night_off_days": "Weekdays for switching off automatically. None = never automatically.",
+              "night_off_speak_services": "When the door alarm is switched off by tag, these services announce it.",
+              "night_off_volume_players": "Speakers whose volume is set for this announcement.",
+              "night_off_volume": "0 = mute, 1 = maximum."
             }
           }
         }
@@ -270,6 +304,10 @@
             "data": {
               "kids_reset_after_unlock": "Reset after unlocking",
               "kids_reset_time": "Reset at night"
+            },
+            "data_description": {
+              "kids_reset_after_unlock": "The switch children alone at home turns off this long after unlocking (an adult comes home).",
+              "kids_reset_time": "The switch also turns off every night at this time."
             }
           },
           "hint": {
@@ -281,10 +319,14 @@
               "hint_duration": "Duration"
             },
             "data_description": {
-              "hint_door_sensor": "Empty = no hint."
+              "hint_door_sensor": "Empty = no hint.",
+              "hint_windows": "Windows checked when the door opens.",
+              "hint_entity": "Light or switch that turns on briefly while a window is open.",
+              "hint_duration": "How long the hint light stays on."
             }
           }
-        }
+        },
+        "data_description": {}
       }
     },
     "error": {
@@ -307,13 +349,18 @@
             "entity": "Sensor",
             "type": "Type"
           },
-          "description": "Name empty = name of the entity."
+          "description": "Name empty = name of the entity.",
+          "data_description": {
+            "name": "Used in messages and as cause. Empty = name of the entity.",
+            "entity": "Contact or motion sensor (binary_sensor, also input_boolean for testing).",
+            "type": "Sets sensible defaults for the behaviour; each can be changed in the next step."
+          }
         },
         "behavior": {
           "title": "Behaviour of {name}",
           "data": {
-            "use_entry_delay": "Entry delay",
-            "use_exit_delay": "Exit delay",
+            "use_entry_delay": "Use entry delay",
+            "use_exit_delay": "May be open during the exit delay",
             "auto_bypass": "Ignore when open at arming",
             "allow_open": "May be active at arming",
             "only_when_unavailable": "Counts only while unavailable",
@@ -322,13 +369,14 @@
             "camera_preset": "Camera preset"
           },
           "data_description": {
-            "use_entry_delay": "Off: triggers immediately.",
-            "use_exit_delay": "May be open during the exit time.",
-            "auto_bypass": "Open windows are ignored until disarming instead of blocking.",
-            "allow_open": "For motion sensors.",
+            "use_entry_delay": "On: tripping starts the entry delay first. Off: immediate alarm.",
+            "use_exit_delay": "May be open or trip during the exit delay (e.g. the front door when leaving).",
+            "auto_bypass": "If the sensor is open when arming it is ignored until disarming (bypass) instead of blocking the arming.",
+            "allow_open": "May be active when arming and counts after its next change, e.g. motion sensors.",
             "only_when_unavailable": "The sensor counts only while this entity is unavailable (e.g. a door that is open for an air conditioner hose).",
             "arm_cover": "Open but not counting when armed: move this cover.",
-            "camera_preset": "Preset when this motion sensor reports motion while armed."
+            "camera_preset": "Name of the stored camera position (PTZ preset) the cameras turn to when this motion sensor reports motion while armed.",
+            "arm_cover_position": "Position in % the cover moves to (0 = closed)."
           }
         }
       },
@@ -353,17 +401,26 @@
             "privacy_switch": "Privacy mode switch",
             "ptz_select": "PTZ preset select",
             "ptz_home_preset": "Default preset",
-            "privacy_delay": "Privacy on after disarming",
+            "privacy_delay": "Privacy on again after",
             "record_switches": "Recording switches",
             "detect_switches": "Detection switches",
             "person_sensor": "Person detected",
             "person_count_sensor": "Person count",
             "person_image": "Person image",
-            "person_push": "Push with image when not disarmed"
+            "person_push": "Push with picture while armed"
           },
           "data_description": {
-            "record_switches": "Stay on while the vacuum drives.",
-            "detect_switches": "Off while the vacuum drives."
+            "record_switches": "Recording switches (e.g. Frigate, a local video analysis). Stay on while the vacuum drives.",
+            "detect_switches": "Detection switches (e.g. Frigate). Off while the vacuum drives, in live view and with children.",
+            "name": "Name of the camera in messages, e.g. Living room.",
+            "privacy_switch": "Switch that turns the camera picture off (privacy mode). On = no picture.",
+            "ptz_select": "Select entity of the camera with the stored positions (PTZ = pan, tilt, zoom).",
+            "ptz_home_preset": "Position when armed, written exactly as in the select entity.",
+            "privacy_delay": "The privacy mode turns on again this long after disarming.",
+            "person_sensor": "Binary sensor 'person detected' of the camera; also counts for the cause of an alarm.",
+            "person_count_sensor": "Sensor with the number of detected persons (instead of the binary sensor).",
+            "person_image": "Image or camera entity; its picture is sent with the push message.",
+            "person_push": "Push with picture when the camera detects a person and the panel is not disarmed."
           },
           "description": "Privacy mode off while armed or children are alone at home, preset per motion sensor, detection off for live view, children and vacuum."
         },
@@ -374,17 +431,26 @@
             "privacy_switch": "Privacy mode switch",
             "ptz_select": "PTZ preset select",
             "ptz_home_preset": "Default preset",
-            "privacy_delay": "Privacy on after disarming",
+            "privacy_delay": "Privacy on again after",
             "record_switches": "Recording switches",
             "detect_switches": "Detection switches",
             "person_sensor": "Person detected",
             "person_count_sensor": "Person count",
             "person_image": "Person image",
-            "person_push": "Push with image when not disarmed"
+            "person_push": "Push with picture while armed"
           },
           "data_description": {
-            "record_switches": "Stay on while the vacuum drives.",
-            "detect_switches": "Off while the vacuum drives."
+            "record_switches": "Recording switches (e.g. Frigate, a local video analysis). Stay on while the vacuum drives.",
+            "detect_switches": "Detection switches (e.g. Frigate). Off while the vacuum drives, in live view and with children.",
+            "name": "Name of the camera in messages, e.g. Living room.",
+            "privacy_switch": "Switch that turns the camera picture off (privacy mode). On = no picture.",
+            "ptz_select": "Select entity of the camera with the stored positions (PTZ = pan, tilt, zoom).",
+            "ptz_home_preset": "Position when armed, written exactly as in the select entity.",
+            "privacy_delay": "The privacy mode turns on again this long after disarming.",
+            "person_sensor": "Binary sensor 'person detected' of the camera; also counts for the cause of an alarm.",
+            "person_count_sensor": "Sensor with the number of detected persons (instead of the binary sensor).",
+            "person_image": "Image or camera entity; its picture is sent with the push message.",
+            "person_push": "Push with picture when the camera detects a person and the panel is not disarmed."
           }
         }
       },
@@ -409,7 +475,8 @@
             "wifi_sensor": "Wi-Fi sensor of the phone"
           },
           "data_description": {
-            "wifi_sensor": "Shows the name of the connected network (companion app)."
+            "wifi_sensor": "Shows the name of the connected network (companion app).",
+            "name": "Name for the presence sensor, e.g. Alex."
           },
           "description": "At home while the phone is connected to a home network (options: automatic arming). Gives a presence sensor and counts for automatic arming and the garage."
         },
@@ -420,7 +487,8 @@
             "wifi_sensor": "Wi-Fi sensor of the phone"
           },
           "data_description": {
-            "wifi_sensor": "Shows the name of the connected network (companion app)."
+            "wifi_sensor": "Shows the name of the connected network (companion app).",
+            "name": "Name for the presence sensor, e.g. Alex."
           }
         }
       },
@@ -455,7 +523,12 @@
             "garage_networks": "Disarmed while a phone is connected (Wi-Fi sensors of the persons and the additional ones).",
             "garage_tts_services": "Notify services of the companion app (Android) that speak the warning.",
             "garage_tts_text": "Empty = standard text.",
-            "garage_tts_stream": "Stream of the Android companion app; alarm_stream_max is loud even in silent mode. iPhones ignore this field."
+            "garage_tts_stream": "Stream of the Android companion app; alarm_stream_max is loud even in silent mode. iPhones ignore this field.",
+            "name": "Name of the garage, e.g. Garage.",
+            "garage_panel": "Second alarm panel of the garage, e.g. from Blink.",
+            "garage_arm_delay": "Armed this long after leaving the garage network.",
+            "garage_motion": "Motion sensors of the garage cameras; report only while the garage is armed.",
+            "garage_tts_repeat": "How often the warning is spoken."
           }
         },
         "reconfigure": {
@@ -475,7 +548,12 @@
             "garage_networks": "Disarmed while a phone is connected (Wi-Fi sensors of the persons and the additional ones).",
             "garage_tts_services": "Notify services of the companion app (Android) that speak the warning.",
             "garage_tts_text": "Empty = standard text.",
-            "garage_tts_stream": "Stream of the Android companion app; alarm_stream_max is loud even in silent mode. iPhones ignore this field."
+            "garage_tts_stream": "Stream of the Android companion app; alarm_stream_max is loud even in silent mode. iPhones ignore this field.",
+            "name": "Name of the garage, e.g. Garage.",
+            "garage_panel": "Second alarm panel of the garage, e.g. from Blink.",
+            "garage_arm_delay": "Armed this long after leaving the garage network.",
+            "garage_motion": "Motion sensors of the garage cameras; report only while the garage is armed.",
+            "garage_tts_repeat": "How often the warning is spoken."
           }
         }
       },
@@ -575,7 +653,7 @@
         "name": "Camera live view"
       },
       "garage_auto": {
-        "name": "Garage automatic"
+        "name": "Garage automation"
       }
     },
     "button": {

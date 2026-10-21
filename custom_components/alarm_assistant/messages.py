@@ -31,8 +31,9 @@ _TEXTS: dict[str, dict[str, str]] = {
     },
     "title_armed": {"de": "Alarmanlage aktiviert", "en": "Alarm armed"},
     "push_bypassed": {
-        "de": "Alarm aktiviert, aber folgende Fenster sind offen und wurden ignoriert: {sensors}.",
-        "en": "Alarm armed, but these open windows are ignored: {sensors}.",
+        "de": "Alarm aktiviert, folgende Sensoren sind offen und werden bis zum Unscharfschalten "
+        "ignoriert: {sensors}.",
+        "en": "Alarm armed, these open sensors are ignored until disarming: {sensors}.",
     },
     "title_lock_failed": {"de": "Tür nicht abgeschlossen", "en": "Door not locked"},
     "push_lock_retry": {
@@ -48,9 +49,9 @@ _TEXTS: dict[str, dict[str, str]] = {
     "title_prewarn": {"de": "Alarmanlage aktiviert bald", "en": "Alarm will arm soon"},
     "push_prewarn": {
         "de": "Niemand ist zuhause. Die Alarmanlage wird in {minutes} Minuten automatisch "
-        "aktiviert, wenn Kinder alleine zuhause nicht aktiviert wird.",
+        'aktiviert, sofern "Kinder alleine zuhause" nicht eingeschaltet wird.',
         "en": "Nobody is at home. The alarm will arm automatically in {minutes} minutes "
-        "unless children alone at home is switched on.",
+        'unless "children alone at home" is switched on.',
     },
     "title_fault": {"de": "Bewegungsmelder unterdrückt", "en": "Motion suppressed"},
     "push_fault": {
@@ -116,7 +117,6 @@ _TEXTS: dict[str, dict[str, str]] = {
     },
     # cause
     "unknown": {"de": "unbekannt", "en": "unknown"},
-    "last_active": {"de": "{name} (zuletzt aktiv)", "en": "{name} (last active)"},
     # logbook
     "log_armed": {"de": "Scharf geschaltet", "en": "Armed"},
     "log_armed_bypass": {

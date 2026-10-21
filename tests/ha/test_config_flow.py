@@ -277,7 +277,7 @@ async def test_camera_and_garage_subentries(hass: HomeAssistant, base_states) ->
     )
     assert result["step_id"] == "reconfigure"
     await hass.async_block_till_done()
-    assert hass.states.get("switch.alarm_assistant_garage_automatic") is not None
+    assert hass.states.get("switch.alarm_assistant_garage_automation") is not None
     assert hass.states.get("switch.alarm_assistant_camera_live_view") is not None
 
 
