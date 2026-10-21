@@ -20,7 +20,6 @@ from .const import (
     CONF_TYPE,
     DEFAULTS,
     DOMAIN,
-    OPTIONAL_TEXT_KEYS,
     SUBENTRY_CAMERA,
     SUBENTRY_GARAGE,
     SUBENTRY_PERSON,
@@ -28,6 +27,7 @@ from .const import (
 )
 from .logic.code import hash_code, valid_code
 from .logic.state_machine import SENSOR_TYPES
+from .validation import FieldError, coerce_option, duplicate_sensor, validate_subentry
 
 DATA_WS = f"{DOMAIN}_ws_registered"
 SUBENTRY_TYPES = (SUBENTRY_SENSOR, SUBENTRY_PERSON, SUBENTRY_CAMERA, SUBENTRY_GARAGE)
@@ -70,23 +70,6 @@ def _entry(hass: HomeAssistant) -> ConfigEntry | None:
             return entry
     entries = hass.config_entries.async_entries(DOMAIN)
     return entries[0] if entries else None
-
-
-def _coerce(key: str, value: Any) -> Any:
-    """Bring a value from the panel into the type of the option."""
-    default = DEFAULTS.get(key)
-    if value is None or value == "":
-        return None
-    if isinstance(default, bool):
-        return bool(value)
-    if isinstance(default, int | float):
-        number = float(value)
-        return int(number) if isinstance(default, int) and number.is_integer() else number
-    if isinstance(default, list):
-        if not isinstance(value, list):
-            raise vol.Invalid(f"{key} must be a list")
-        return [str(v).strip() for v in value if str(v).strip()]
-    return str(value).strip()
 
 
 def config_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
@@ -159,16 +142,14 @@ async def ws_save_options(
     options = dict(entry.options)
     try:
         for key, value in msg["options"].items():
-            if key not in DEFAULTS and key not in OPTIONAL_TEXT_KEYS:
-                raise vol.Invalid(f"unknown option {key}")
-            coerced = _coerce(key, value)
+            coerced = coerce_option(key, value)
             if coerced is None and key not in DEFAULTS:
                 options.pop(key, None)
             elif coerced is None:
                 options[key] = DEFAULTS[key]
             else:
                 options[key] = coerced
-    except (vol.Invalid, TypeError, ValueError) as err:
+    except FieldError as err:
         connection.send_error(msg["id"], "invalid", str(err))
         return
     if msg["remove_code"]:
@@ -217,7 +198,11 @@ def ws_save_subentry(
     if entry is None:
         connection.send_error(msg["id"], "not_found", "Alarm Assistant is not set up")
         return
-    data = {k: v for k, v in msg["data"].items() if v not in (None, "", [])}
+    try:
+        data = validate_subentry(msg["subentry_type"], msg["data"])
+    except FieldError as err:
+        connection.send_error(msg["id"], "invalid", str(err))
+        return
     title = msg["title"].strip()
     if msg["subentry_type"] == SUBENTRY_SENSOR and not title and data.get(CONF_ENTITY):
         state = hass.states.get(str(data[CONF_ENTITY]))
@@ -226,6 +211,11 @@ def ws_save_subentry(
         connection.send_error(msg["id"], "invalid", error)
         return
     sub_id = msg.get("subentry_id")
+    if msg["subentry_type"] == SUBENTRY_SENSOR and duplicate_sensor(
+        entry, data[CONF_ENTITY], sub_id
+    ):
+        connection.send_error(msg["id"], "invalid", f"{CONF_ENTITY}:already_configured")
+        return
     if sub_id:
         subentry = entry.subentries.get(sub_id)
         if subentry is None or subentry.subentry_type != msg["subentry_type"]:

@@ -272,3 +272,23 @@ async def test_person_subentry(hass: HomeAssistant, base_states) -> None:
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     assert hass.states.get("binary_sensor.alarm_assistant_alex_at_home") is not None
+
+
+async def test_sensor_subentry_rejects_duplicate(hass: HomeAssistant, base_states) -> None:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_SENSOR), context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"entity": DOOR, "type": "door"}
+    )
+    assert result["errors"] == {"entity": "already_configured"}
+    assert result["description_placeholders"]["other"] == "Front door"
+    # changing the sensor itself keeps its entity
+    sub_id = next(i for i, s in entry.subentries.items() if s.data["entity"] == DOOR)
+    result = await entry.start_subentry_reconfigure_flow(hass, sub_id)
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"name": "Door", "entity": DOOR, "type": "door"}
+    )
+    assert result["step_id"] == "behavior"

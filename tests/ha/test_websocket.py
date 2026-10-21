@@ -132,3 +132,64 @@ async def test_test_arm_and_trigger(hass: HomeAssistant, base_states, hass_ws_cl
     assert msg["result"]["state"] == "triggered"
     await client.send_json_auto_id({"type": "alarm_assistant/config"})
     assert (await client.receive_json())["result"]["test_last"] == ["lights", "push:notify.phone"]
+
+
+async def test_invalid_options_are_rejected(
+    hass: HomeAssistant, base_states, hass_ws_client
+) -> None:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    client = await hass_ws_client(hass)
+    cases = [
+        ({"entry_delay": -50}, "entry_delay:out_of_range"),
+        ({"alarm_volume": 7}, "alarm_volume:out_of_range"),
+        ({"alarm_volume": "loud"}, "alarm_volume:not_a_number"),
+        ({"lock_on_arm": "false"}, "lock_on_arm:not_bool"),
+        ({"night_off_days": ["xyz"]}, "night_off_days:invalid_choice"),
+        ({"presence_mode": "radar"}, "presence_mode:invalid_choice"),
+        ({"night_off_time": "25:00"}, "night_off_time:invalid_time"),
+        ({"turn_on_entities": "light.hall"}, "turn_on_entities:not_a_list"),
+    ]
+    for options, error in cases:
+        await client.send_json_auto_id({"type": "alarm_assistant/save_options", "options": options})
+        msg = await client.receive_json()
+        assert not msg["success"], options
+        assert msg["error"]["message"] == error
+    assert entry.options["entry_delay"] == 30
+    assert entry.options["alarm_volume"] == 0.51
+
+
+async def test_invalid_subentries_are_rejected(
+    hass: HomeAssistant, base_states, hass_ws_client
+) -> None:
+    entry = make_entry(sensors=[])
+    await setup_entry(hass, entry)
+    client = await hass_ws_client(hass)
+
+    async def save(data: dict, title: str = "X", sub_type: str = "sensor") -> dict:
+        await client.send_json_auto_id(
+            {
+                "type": "alarm_assistant/save_subentry",
+                "subentry_type": sub_type,
+                "title": title,
+                "data": data,
+            }
+        )
+        return await client.receive_json()
+
+    msg = await save({"entity": DOOR, "type": "window", "arm_cover_position": "abc"})
+    assert msg["error"]["message"] == "arm_cover_position:not_a_number"
+    msg = await save({"entity": "not an entity", "type": "window"})
+    assert msg["error"]["message"] == "entity:invalid_entity"
+    msg = await save({"entity": DOOR, "type": "window", "foo": 1})
+    assert msg["error"]["message"] == "foo:unknown_option"
+    msg = await save(
+        {"garage_panel": "alarm_control_panel.g", "garage_arm_delay": 99}, "G", "garage"
+    )
+    assert msg["error"]["message"] == "garage_arm_delay:out_of_range"
+    assert entry.subentries == {}
+    assert entry.state.value == "loaded"
+    # the same entity twice
+    assert (await save({"entity": DOOR, "type": "door"}))["success"]
+    msg = await save({"entity": DOOR, "type": "window"}, "Y")
+    assert msg["error"]["message"] == "entity:already_configured"

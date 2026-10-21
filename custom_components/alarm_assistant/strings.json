@@ -317,6 +317,9 @@
       },
       "abort": {
         "reconfigure_successful": "Saved."
+      },
+      "error": {
+        "already_configured": "This entity is already set up as sensor \"{other}\". Change that sensor instead or choose another entity."
       }
     },
     "camera": {

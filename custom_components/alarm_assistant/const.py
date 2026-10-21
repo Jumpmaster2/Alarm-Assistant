@@ -241,3 +241,28 @@ GARAGE_DEFAULTS: Final[dict[str, object]] = {
     CONF_GARAGE_TTS: [],
     CONF_GARAGE_TTS_REPEAT: 2,
 }
+
+# ---------- number ranges: (min, max, step, unit), used by the flows and the panel API
+RANGES: Final[dict[str, tuple[float, float, float, str | None]]] = {
+    CONF_ENTRY_DELAY: (0, 600, 1, "s"),
+    CONF_EXIT_DELAY: (0, 600, 1, "s"),
+    CONF_TRIGGER_TIME: (0, 7200, 1, "s"),
+    CONF_DOCK_GRACE: (0, 1800, 1, "s"),
+    CONF_ALARM_VOLUME: (0, 1, 0.01, None),
+    CONF_RESET_VOLUME: (0, 1, 0.01, None),
+    CONF_RESET_AFTER: (0, 600, 1, "s"),
+    CONF_CALL_WAIT: (0, 600, 1, "s"),
+    CONF_CALL_COOLDOWN: (0, 3600, 1, "s"),
+    CONF_QUIET: (0, 240, 1, "min"),
+    CONF_PREWARN: (0, 60, 1, "min"),
+    CONF_RETRY: (0, 120, 1, "min"),
+    CONF_PRESENCE_STABLE: (0, 60, 1, "min"),
+    CONF_NIGHT_RESET_AFTER: (0, 600, 1, "s"),
+    CONF_NIGHT_OFF_VOLUME: (0, 1, 0.01, None),
+    CONF_KIDS_RESET_AFTER: (0, 240, 1, "min"),
+    CONF_HINT_DURATION: (1, 600, 1, "s"),
+    CONF_ARM_COVER_POSITION: (0, 100, 1, "%"),
+    CONF_PRIVACY_DELAY: (0, 60, 1, "min"),
+    CONF_GARAGE_DELAY: (0, 60, 1, "min"),
+    CONF_GARAGE_TTS_REPEAT: (0, 10, 1, None),
+}

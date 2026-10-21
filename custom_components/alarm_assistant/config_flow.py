@@ -135,6 +135,7 @@ from .const import (
     GARAGE_DEFAULTS,
     LANGUAGE_OPTIONS,
     NAME,
+    RANGES,
     SENSOR_DEFAULTS,
     SUBENTRY_CAMERA,
     SUBENTRY_GARAGE,
@@ -145,6 +146,7 @@ from .logic.auto_arm import PRESENCE_MODES
 from .logic.code import hash_code, valid_code
 from .logic.misc import WEEKDAYS
 from .logic.state_machine import SENSOR_TYPES, TYPE_WINDOW, type_defaults
+from .validation import duplicate_sensor
 
 CONF_NEW_CODE = "new_code"
 CONF_CODE_CONFIRM = "code_confirm"
@@ -157,7 +159,9 @@ SECTION_HINT = "hint"
 SECTION_OFF = "switch_off"
 
 
-def _number(minimum: float, maximum: float, step: float, unit: str | None = None) -> NumberSelector:
+def _number(key: str) -> NumberSelector:
+    """Number field with the range of the option (const.RANGES)."""
+    minimum, maximum, step, unit = RANGES[key]
     config = NumberSelectorConfig(min=minimum, max=maximum, step=step, mode=NumberSelectorMode.BOX)
     if unit:
         config["unit_of_measurement"] = unit
@@ -273,9 +277,9 @@ def _general_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
 
 def _alarm_fields(v: dict[str, Any]) -> dict[Any, Any]:
     return {
-        _req(CONF_ENTRY_DELAY, v): _number(0, 600, 1, "s"),
-        _req(CONF_EXIT_DELAY, v): _number(0, 600, 1, "s"),
-        _req(CONF_TRIGGER_TIME, v): _number(0, 7200, 1, "s"),
+        _req(CONF_ENTRY_DELAY, v): _number(CONF_ENTRY_DELAY),
+        _req(CONF_EXIT_DELAY, v): _number(CONF_EXIT_DELAY),
+        _req(CONF_TRIGGER_TIME, v): _number(CONF_TRIGGER_TIME),
         _req(CONF_DISARM_AFTER_TRIGGER, v): BooleanSelector(),
         _req(CONF_CODE_ARM, v): BooleanSelector(),
         _list(CONF_ARM_ON_ENTITIES, v): _entity(None, True),
@@ -287,7 +291,7 @@ def _motion_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
         {
             _opt(CONF_VACUUM, v): _entity(["vacuum"]),
             _opt(CONF_VACUUM_CHARGING, v): _entity(["binary_sensor"]),
-            _req(CONF_DOCK_GRACE, v): _number(0, 1800, 1, "s"),
+            _req(CONF_DOCK_GRACE, v): _number(CONF_DOCK_GRACE),
             _opt(CONF_FAULT_SENSOR, v): _entity(["binary_sensor"]),
             _req(CONF_NOTIFY_SUPPRESSED, v): BooleanSelector(),
         }
@@ -311,9 +315,9 @@ def _reactions_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
                 vol.Schema(
                     {
                         _list(CONF_VOLUME_PLAYERS, v): _entity(["media_player"], True),
-                        _req(CONF_ALARM_VOLUME, v): _number(0, 1, 0.01),
-                        _req(CONF_RESET_VOLUME, v): _number(0, 1, 0.01),
-                        _req(CONF_RESET_AFTER, v): _number(0, 600, 1, "s"),
+                        _req(CONF_ALARM_VOLUME, v): _number(CONF_ALARM_VOLUME),
+                        _req(CONF_RESET_VOLUME, v): _number(CONF_RESET_VOLUME),
+                        _req(CONF_RESET_AFTER, v): _number(CONF_RESET_AFTER),
                         _list(CONF_SOUND_DEVICES, v): _alexa_devices(),
                         _req(CONF_SOUND, v): TextSelector(),
                         _list(CONF_SPEAK_SERVICES, v): _services(hass),
@@ -340,10 +344,10 @@ def _call_schema(v: dict[str, Any]) -> vol.Schema:
             _opt(CONF_CALL_ADDON, v): TextSelector(),
             _list(CONF_CALL_TARGETS, v): _free_list(),
             _req(CONF_CALL_ACK, v): BooleanSelector(),
-            _req(CONF_CALL_WAIT, v): _number(0, 600, 1, "s"),
+            _req(CONF_CALL_WAIT, v): _number(CONF_CALL_WAIT),
             _opt(CONF_CALL_TTS, v): _entity(["tts"]),
             _req(CONF_CALL_LANGUAGE, v): TextSelector(),
-            _req(CONF_CALL_COOLDOWN, v): _number(0, 3600, 1, "s"),
+            _req(CONF_CALL_COOLDOWN, v): _number(CONF_CALL_COOLDOWN),
         }
     )
 
@@ -355,10 +359,10 @@ def _auto_arm_schema(v: dict[str, Any]) -> vol.Schema:
             _list(CONF_WIFI_SENSORS, v): _entity(["sensor"], True),
             _list(CONF_HOME_NETWORKS, v): _free_list(),
             _list(CONF_PERSONS, v): _entity(["person"], True),
-            _req(CONF_QUIET, v): _number(0, 240, 1, "min"),
-            _req(CONF_PREWARN, v): _number(0, 60, 1, "min"),
-            _req(CONF_RETRY, v): _number(0, 120, 1, "min"),
-            _req(CONF_PRESENCE_STABLE, v): _number(0, 60, 1, "min"),
+            _req(CONF_QUIET, v): _number(CONF_QUIET),
+            _req(CONF_PREWARN, v): _number(CONF_PREWARN),
+            _req(CONF_RETRY, v): _number(CONF_RETRY),
+            _req(CONF_PRESENCE_STABLE, v): _number(CONF_PRESENCE_STABLE),
         }
     )
 
@@ -384,7 +388,7 @@ def _night_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
             _list(CONF_NIGHT_SOUND_DEVICES, v): _alexa_devices(),
             _list(CONF_NIGHT_SPEAK, v): _services(hass),
             _opt(CONF_NIGHT_TEXT, v): TextSelector(),
-            _req(CONF_NIGHT_RESET_AFTER, v): _number(0, 600, 1, "s"),
+            _req(CONF_NIGHT_RESET_AFTER, v): _number(CONF_NIGHT_RESET_AFTER),
             vol.Required(SECTION_OFF): section(
                 vol.Schema(
                     {
@@ -394,7 +398,7 @@ def _night_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
                         ): _choice(WEEKDAYS, "weekday", multiple=True),
                         _list(CONF_NIGHT_OFF_SPEAK, v): _services(hass),
                         _list(CONF_NIGHT_OFF_VOLUME_PLAYERS, v): _entity(["media_player"], True),
-                        _req(CONF_NIGHT_OFF_VOLUME, v): _number(0, 1, 0.01),
+                        _req(CONF_NIGHT_OFF_VOLUME, v): _number(CONF_NIGHT_OFF_VOLUME),
                     }
                 ),
                 {"collapsed": False},
@@ -409,7 +413,7 @@ def _extras_schema(v: dict[str, Any]) -> vol.Schema:
             vol.Required(SECTION_KIDS): section(
                 vol.Schema(
                     {
-                        _req(CONF_KIDS_RESET_AFTER, v): _number(0, 240, 1, "min"),
+                        _req(CONF_KIDS_RESET_AFTER, v): _number(CONF_KIDS_RESET_AFTER),
                         _req(CONF_KIDS_RESET_TIME, v): TimeSelector(),
                     }
                 ),
@@ -421,7 +425,7 @@ def _extras_schema(v: dict[str, Any]) -> vol.Schema:
                         _opt(CONF_HINT_DOOR, v): _entity(["binary_sensor"]),
                         _list(CONF_HINT_WINDOWS, v): _entity(["binary_sensor"], True),
                         _opt(CONF_HINT_ENTITY, v): _entity(["switch", "light", "input_boolean"]),
-                        _req(CONF_HINT_DURATION, v): _number(1, 600, 1, "s"),
+                        _req(CONF_HINT_DURATION, v): _number(CONF_HINT_DURATION),
                     }
                 ),
                 {"collapsed": False},
@@ -633,7 +637,15 @@ class SensorSubentryFlow(ConfigSubentryFlow):
     async def async_step_basics(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
+        errors: dict[str, str] = {}
+        placeholders = {"other": ""}
         if user_input is not None:
+            own_id = self._get_reconfigure_subentry().subentry_id if self._reconfigure else None
+            other = duplicate_sensor(self._get_entry(), str(user_input[CONF_ENTITY]), own_id)
+            if other is not None:
+                errors[CONF_ENTITY] = "already_configured"
+                placeholders["other"] = other
+        if user_input is not None and not errors:
             if user_input.get(CONF_TYPE) != self._values.get(CONF_TYPE):
                 # new type: start with its defaults
                 for key in (CONF_USE_ENTRY, CONF_USE_EXIT, CONF_AUTO_BYPASS, CONF_ALLOW_OPEN):
@@ -645,18 +657,24 @@ class SensorSubentryFlow(ConfigSubentryFlow):
                 name = state.name if state else str(user_input[CONF_ENTITY])
             self._values[CONF_NAME] = name
             return await self.async_step_behavior()
+        values = {**self._values, **(user_input or {})}
         schema = vol.Schema(
             {
-                _opt(CONF_NAME, self._values): TextSelector(),
-                vol.Required(CONF_ENTITY, default=self._values.get(CONF_ENTITY)): _entity(
+                _opt(CONF_NAME, values): TextSelector(),
+                vol.Required(CONF_ENTITY, default=values.get(CONF_ENTITY)): _entity(
                     ["binary_sensor", "input_boolean"]
                 ),
-                vol.Required(CONF_TYPE, default=self._values.get(CONF_TYPE, TYPE_WINDOW)): _choice(
+                vol.Required(CONF_TYPE, default=values.get(CONF_TYPE, TYPE_WINDOW)): _choice(
                     SENSOR_TYPES, "sensor_type"
                 ),
             }
         )
-        return self.async_show_form(step_id="basics", data_schema=schema)
+        return self.async_show_form(
+            step_id="basics",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders=placeholders,
+        )
 
     async def async_step_behavior(
         self, user_input: dict[str, Any] | None = None
@@ -691,7 +709,7 @@ class SensorSubentryFlow(ConfigSubentryFlow):
             {
                 _opt(CONF_ONLY_UNAVAILABLE, v): _entity(),
                 _opt(CONF_ARM_COVER, v): _entity(["cover"]),
-                _req(CONF_ARM_COVER_POSITION, v, SENSOR_DEFAULTS): _number(0, 100, 1, "%"),
+                _req(CONF_ARM_COVER_POSITION, v, SENSOR_DEFAULTS): _number(CONF_ARM_COVER_POSITION),
                 _opt(CONF_CAMERA_PRESET, v): TextSelector(),
             }
         )
@@ -712,7 +730,7 @@ def _camera_schema(v: dict[str, Any]) -> vol.Schema:
             _opt(CONF_PRIVACY, v): _entity(["switch"]),
             _opt(CONF_PTZ, v): _entity(["select"]),
             _opt(CONF_PTZ_HOME, v): TextSelector(),
-            _req(CONF_PRIVACY_DELAY, v, CAMERA_DEFAULTS): _number(0, 60, 1, "min"),
+            _req(CONF_PRIVACY_DELAY, v, CAMERA_DEFAULTS): _number(CONF_PRIVACY_DELAY),
             _list(CONF_RECORD_SWITCHES, v): _entity(["switch"], True),
             _list(CONF_DETECT_SWITCHES, v): _entity(["switch"], True),
             _opt(CONF_PERSON_SENSOR, v): _entity(["binary_sensor"]),
@@ -731,11 +749,11 @@ def _garage_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
                 ["alarm_control_panel"]
             ),
             _list(CONF_GARAGE_NETWORKS, v): _free_list(),
-            _req(CONF_GARAGE_DELAY, v, GARAGE_DEFAULTS): _number(0, 60, 1, "min"),
+            _req(CONF_GARAGE_DELAY, v, GARAGE_DEFAULTS): _number(CONF_GARAGE_DELAY),
             _list(CONF_GARAGE_MOTION, v): _entity(["binary_sensor"], True),
             _list(CONF_GARAGE_TTS, v): _services(hass),
             _opt(CONF_GARAGE_TTS_TEXT, v): TextSelector(),
-            _req(CONF_GARAGE_TTS_REPEAT, v, GARAGE_DEFAULTS): _number(0, 10, 1),
+            _req(CONF_GARAGE_TTS_REPEAT, v, GARAGE_DEFAULTS): _number(CONF_GARAGE_TTS_REPEAT),
         }
     )
 

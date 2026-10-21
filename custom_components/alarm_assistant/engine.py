@@ -365,7 +365,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                     ),
                     condition=data.get(CONF_ONLY_UNAVAILABLE) or None,
                     arm_cover=data.get(CONF_ARM_COVER) or None,
-                    arm_cover_position=int(data.get(CONF_ARM_COVER_POSITION, 20)),
+                    arm_cover_position=_as_int(data.get(CONF_ARM_COVER_POSITION)),
                     camera_preset=str(data.get(CONF_CAMERA_PRESET) or "").strip() or None,
                 )
             elif sub.subentry_type == SUBENTRY_CAMERA:

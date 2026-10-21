@@ -119,6 +119,17 @@ const UI = {
       code_invalid: "Der Code muss aus 4 bis 10 Ziffern bestehen.",
       code_mismatch: "Die beiden Codes stimmen nicht überein.",
     },
+    fieldErrors: {
+      out_of_range: "Wert außerhalb des erlaubten Bereichs",
+      not_a_number: "bitte eine Zahl eingeben",
+      not_a_list: "ungültige Liste",
+      not_bool: "ungültiger Schalterwert",
+      invalid_entity: "keine gültige Entitäts-ID (Format domain.name)",
+      invalid_choice: "ungültige Auswahl",
+      invalid_time: "ungültige Uhrzeit (HH:MM)",
+      unknown_option: "unbekannte Einstellung",
+      already_configured: "diese Entität ist bereits als Sensor angelegt",
+    },
     loadError: "Konfiguration konnte nicht geladen werden",
     up: "nach oben",
     down: "nach unten",
@@ -264,6 +275,17 @@ const UI = {
       type_required: "Please choose a type.",
       code_invalid: "The code must have 4 to 10 digits.",
       code_mismatch: "The two codes do not match.",
+    },
+    fieldErrors: {
+      out_of_range: "value outside the allowed range",
+      not_a_number: "please enter a number",
+      not_a_list: "invalid list",
+      not_bool: "invalid switch value",
+      invalid_entity: "not a valid entity id (format domain.name)",
+      invalid_choice: "invalid choice",
+      invalid_time: "invalid time (HH:MM)",
+      unknown_option: "unknown setting",
+      already_configured: "this entity is already set up as a sensor",
     },
     loadError: "Could not load the configuration",
     up: "up",
@@ -1440,7 +1462,7 @@ class AlarmAssistantPanel extends HTMLElement {
       this._toast(this.ui.saved);
     } catch (err) {
       button.disabled = false;
-      this._cardMessage(button, this.ui.errors[err.message] || err.message || String(err), true);
+      this._cardMessage(button, this._errorText(err), true);
     }
   }
 
@@ -1464,9 +1486,16 @@ class AlarmAssistantPanel extends HTMLElement {
       this._toast(this.ui.saved);
     } catch (err) {
       button.disabled = false;
-      const text = this.ui.errors[err.message] || err.message || String(err);
-      this._cardMessage(button, text, true);
+      this._cardMessage(button, this._errorText(err), true);
     }
+  }
+
+  _errorText(err) {
+    const message = err?.message || String(err);
+    if (this.ui.errors[message]) return this.ui.errors[message];
+    const [field, code] = message.split(":");
+    if (code && this.ui.fieldErrors[code]) return `${this.label(field)[0]}: ${this.ui.fieldErrors[code]}`;
+    return message;
   }
 
   _cardMessage(el, text, bad = false) {
