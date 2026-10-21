@@ -863,3 +863,23 @@ async def test_night_door_sirens_switch_off(
     await set_state(hass, DOOR, "on")
     assert calls["siren_on"][0].data["entity_id"] == ["siren.hall"]
     assert calls["siren_off"][0].data["entity_id"] == ["siren.hall"]
+
+
+async def test_only_configured_entities(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    """Switches and buttons of functions that are not set up do not exist."""
+    from homeassistant.helpers import entity_registry as er
+
+    persons = [_person("p_a", "Alex", WIFI_A)]
+    entry = make_entry(extra_subentries=persons, home_networks=[HOME])
+    await setup_entry(hass, entry)
+    registry = er.async_get(hass)
+    assert hass.states.get(AUTO) is not None
+    assert hass.states.get(ACK) is None
+    assert registry.async_get("button.alarm_assistant_test_message").entity_category == "config"
+    # the person is deleted: automatic arming and the presence sensor go away
+    hass.config_entries.async_remove_subentry(entry, "p_a")
+    await hass.async_block_till_done()
+    assert registry.async_get(AUTO) is None
+    assert registry.async_get("binary_sensor.alarm_assistant_alex_at_home") is None

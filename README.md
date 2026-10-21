@@ -100,12 +100,16 @@ Eingestellte Entitäten oder Dienste, die es nicht gibt, werden nach dem Start u
 | Entität | Bedeutung |
 |---|---|
 | Alarmzentrale | Abwesend scharf/unscharf, Attribute: offene und ignorierte Sensoren, Ursache |
-| Schalter Automatisch scharf, Kinder alleine zuhause | bleiben über Neustarts erhalten |
-| Schalter Nacht-Türalarm, Kamera Live-Ansicht, Garage Automatik | nur wenn eingerichtet |
-| Binärsensoren Bewegung, Kontakte offen, Bewegung unterdrückt, Vorwarnung | |
+| Schalter Kinder alleine zuhause | bleibt über Neustarts erhalten |
+| Schalter Automatisch scharf, Nacht-Türalarm, Kamera Live-Ansicht, Garage Automatik | nur wenn eingerichtet, bleiben über Neustarts erhalten |
+| Binärsensoren Bewegung, Kontakte offen, Vorwarnung | |
+| Binärsensor Bewegung unterdrückt | Diagnose-Entität |
 | Binärsensor "<Name> zuhause" | je Person, aus dem WLAN des Handys |
 | Sensoren Ursache, Letzter Alarm | |
-| Buttons Anruf quittieren, Testmeldung | Testmeldung schickt nur einen Push mit den offenen Sensoren |
+| Button Anruf quittieren | nur mit eingerichtetem Anruf (wird von ha-sip gedrückt) |
+| Button Testmeldung | Konfigurations-Entität, schickt nur einen Push mit den offenen Sensoren |
+
+Entitäten von Funktionen, die nicht mehr eingerichtet sind (oder gelöschter Personen), werden automatisch entfernt.
 
 Die Zentrale wird mit den normalen Diensten `alarm_control_panel.alarm_arm_away` und `alarm_control_panel.alarm_disarm` bedient, z. B. aus einem Knopf-Blueprint.
 

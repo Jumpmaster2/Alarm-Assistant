@@ -100,12 +100,16 @@ Configured entities or services that do not exist are reported under Repairs aft
 | Entity | Meaning |
 |---|---|
 | Alarm panel | armed away/disarmed, attributes: open and ignored sensors, cause |
-| Switches automatic arming, children alone at home | kept over restarts |
-| Switches night door alarm, camera live view, garage automatic | only when set up |
-| Binary sensors motion, contacts open, motion suppressed, warning | |
+| Switch children alone at home | kept over restarts |
+| Switches automatic arming, night door alarm, camera live view, garage automation | only when set up, kept over restarts |
+| Binary sensors motion, contacts open, warning | |
+| Binary sensor motion suppressed | diagnostic entity |
 | Binary sensor "<name> at home" | per person, from the phone's Wi-Fi |
 | Sensors cause, last alarm | |
-| Buttons acknowledge call, test message | the test message only sends a push with the open sensors |
+| Button acknowledge call | only with a phone call set up (pressed by ha-sip) |
+| Button test message | configuration entity, only sends a push with the open sensors |
+
+Entities of functions that are no longer set up (or of deleted persons) are removed automatically.
 
 The panel is used with the standard actions `alarm_control_panel.alarm_arm_away` and `alarm_control_panel.alarm_disarm`, e.g. from a button blueprint.
 

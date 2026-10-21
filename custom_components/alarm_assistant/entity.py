@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -18,6 +22,14 @@ def global_device_info(entry_id: str) -> DeviceInfo:
         model="Alarm panel",
         entry_type=DeviceEntryType.SERVICE,
     )
+
+
+def remove_entities(hass: HomeAssistant, entry_id: str, domain: str, keys: Iterable[str]) -> None:
+    """Remove entities of functions that are no longer set up."""
+    registry = er.async_get(hass)
+    for key in keys:
+        if entity_id := registry.async_get_entity_id(domain, DOMAIN, f"{entry_id}_{key}"):
+            registry.async_remove(entity_id)
 
 
 class AlarmEntity(CoordinatorEntity[AlarmEngine]):

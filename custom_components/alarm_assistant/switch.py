@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .engine import AlarmConfigEntry, AlarmEngine
-from .entity import AlarmEntity
+from .entity import AlarmEntity, remove_entities
 
 PARALLEL_UPDATES = 0
 
@@ -21,24 +21,37 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     engine = entry.runtime_data
-    entities = [
-        EngineSwitch(engine, "auto_arm", lambda e: e.auto_arm_enabled, engine.async_set_auto_arm),
-        EngineSwitch(engine, "kids_home", lambda e: e.kids_home, engine.async_set_kids),
+    # switches of functions that are set up (key, configured, getter, setter)
+    optional = [
+        (
+            "auto_arm",
+            engine.auto_arm_configured,
+            lambda e: e.auto_arm_enabled,
+            engine.async_set_auto_arm,
+        ),
+        (
+            "night_door",
+            engine.night_door_configured,
+            lambda e: e.night_door,
+            engine.async_set_night_door,
+        ),
+        ("live_mode", bool(engine.cameras), lambda e: e.live_mode, engine.async_set_live),
+        (
+            "garage_auto",
+            bool(engine.garages),
+            lambda e: e.garage_auto,
+            engine.async_set_garage_auto,
+        ),
     ]
-    if engine.night_door_configured:
-        entities.append(
-            EngineSwitch(engine, "night_door", lambda e: e.night_door, engine.async_set_night_door)
-        )
-    if engine.cameras:
-        entities.append(
-            EngineSwitch(engine, "live_mode", lambda e: e.live_mode, engine.async_set_live)
-        )
-    if engine.garages:
-        entities.append(
-            EngineSwitch(
-                engine, "garage_auto", lambda e: e.garage_auto, engine.async_set_garage_auto
-            )
-        )
+    entities = [EngineSwitch(engine, "kids_home", lambda e: e.kids_home, engine.async_set_kids)]
+    entities += [
+        EngineSwitch(engine, key, getter, setter)
+        for key, configured, getter, setter in optional
+        if configured
+    ]
+    remove_entities(
+        hass, entry.entry_id, "switch", [key for key, configured, *_ in optional if not configured]
+    )
     async_add_entities(entities)
 
 
