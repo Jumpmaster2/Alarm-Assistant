@@ -15,7 +15,7 @@ from custom_components.alarm_assistant.const import (
     SUBENTRY_GARAGE,
     SUBENTRY_PERSON,
 )
-from custom_components.alarm_assistant.engine import hash_code
+from custom_components.alarm_assistant.logic.code import hash_code, legacy_hash, verify_code
 
 from .conftest import (
     AIRCON,
@@ -271,6 +271,37 @@ async def test_code(
     assert _state(hass) == "disarmed"
 
 
+async def test_legacy_code_is_upgraded_without_reload(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    """A code hash of version 0.4 still works and is stored salted afterwards."""
+    freezer.move_to(START)
+    entry = make_entry(code=legacy_hash("1234"))
+    await setup_entry(hass, entry)
+    engine = entry.runtime_data
+    await _arm(hass)
+    await _disarm(hass, "1234")
+    await hass.async_block_till_done()
+    assert _state(hass) == "disarmed"
+    assert entry.options["code"].startswith("pbkdf2_sha256$")
+    assert verify_code("1234", entry.options["code"])
+    assert entry.runtime_data is engine  # no reload for the new hash
+
+
+async def test_wrong_codes_are_reported(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(code=hash_code("1234")))
+    await _arm(hass)
+    for _ in range(5):
+        with pytest.raises(ServiceValidationError):
+            await _disarm(hass, "0000")
+    await hass.async_block_till_done()
+    assert any("5 times" in c.data["message"] for c in calls["notify"])
+    assert _state(hass) == "armed_away"
+
+
 AUTO_ARM = {
     "wifi_sensors": [WIFI_A, WIFI_B],
     "home_networks": [HOME],
@@ -283,7 +314,7 @@ async def test_automatic_arming(
     freezer.move_to(START)
     await setup_entry(hass, make_entry(**AUTO_ARM))
     await set_state(hass, WIFI_A, "Mobile")
-    await set_state(hass, WIFI_B, "unavailable")
+    await set_state(hass, WIFI_B, "<not connected>")
     # last motion 30 min ago: the presence must be stable for 2 min
     await advance(hass, freezer, 60)
     assert not any("Nobody" in c.data["message"] for c in calls["notify"])
@@ -292,6 +323,19 @@ async def test_automatic_arming(
     assert hass.states.get("binary_sensor.alarm_assistant_automatic_arming_warning").state == "on"
     await advance(hass, freezer, 5 * 60 + 30)
     assert _state(hass) == "armed_away"
+
+
+@pytest.mark.parametrize(("unknown", "armed"), [("home", False), ("away", True)])
+async def test_unknown_phone_counts_as_option(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory, unknown, armed
+) -> None:
+    """A phone that is unavailable counts as at home by default."""
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(**AUTO_ARM, unknown_presence=unknown))
+    await set_state(hass, WIFI_A, "Mobile")
+    await set_state(hass, WIFI_B, "unavailable")
+    await advance(hass, freezer, 10 * 60)
+    assert (_state(hass) == "armed_away") is armed
 
 
 async def test_automatic_arming_blocked_by_kids_and_motion(
@@ -336,12 +380,15 @@ async def test_call_chain_with_acknowledge(
     first = calls["stdin"][0].data["input"]["menu"]
     assert first["choices"]["1"]["action"]["entity_id"] == ACK
     assert "Calling now" in calls["notify"][-1].data["message"]
-    # second alarm within the cooldown: no new call
+    # second alarm within the cooldown: no new call, but the push
+    pushes = len(calls["pushover"])
     await _disarm(hass)
     await set_state(hass, WINDOW, "off")
     await _arm(hass)
     await set_state(hass, WINDOW, "on")
     assert len(calls["stdin"]) == 2
+    assert len(calls["pushover"]) == pushes + 1
+    assert "Calling now" not in calls["notify"][-1].data["message"]
     # after the cooldown, acknowledged call stops the chain
     await _disarm(hass)
     await advance(hass, freezer, 200)
@@ -351,6 +398,29 @@ async def test_call_chain_with_acknowledge(
     await set_state(hass, WINDOW, "on")
     await hass.async_block_till_done(wait_background_tasks=True)
     assert len(calls["stdin"]) == 3
+
+
+async def test_disarm_stops_call_chain_and_siren(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory, no_pauses
+) -> None:
+    """Disarming during the alarm: no further calls, the volume goes back."""
+    freezer.move_to(START)
+    entry = make_entry(
+        **REACTIONS, call_addon="sip_addon", call_targets=["sip:1@x", "sip:2@x", "sip:3@x"]
+    )
+    await setup_entry(hass, entry)
+
+    async def disarm_while_waiting(seconds: float) -> None:
+        if seconds == 50:
+            entry.runtime_data.disarm()
+
+    no_pauses.side_effect = disarm_while_waiting
+    await _arm(hass)
+    await set_state(hass, WINDOW, "on")
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert _state(hass) == "disarmed"
+    assert [c.data["input"]["number"] for c in calls["stdin"]] == ["sip:1@x"]
+    assert calls["volume"][-1].data["volume_level"] == 0.2
 
 
 async def test_state_survives_reload(
@@ -553,7 +623,10 @@ async def test_garage(
     await setup_entry(hass, make_entry(extra_subentries=[GARAGE], wifi_sensors=[WIFI_A, WIFI_B]))
     await set_state(hass, "binary_sensor.garage_motion", "on")
     assert any(c.data["title"] == "Garage" for c in calls["notify"])
-    assert len([c for c in calls["notify"] if c.data["message"] == "TTS"]) == 2
+    tts = [c.data["data"] for c in calls["notify"] if c.data["message"] == "TTS"]
+    assert len(tts) == 2
+    assert tts[0]["media_stream"] == "alarm_stream_max"
+    assert tts[0]["tts_language"] == "en-US"
     await set_state(hass, WIFI_A, "GarageNet")
     assert (
         calls_of(service_events, "alarm_control_panel", "alarm_disarm")[0]["entity_id"]
@@ -578,6 +651,17 @@ async def test_missing_entities_issue(
     issue = ir.async_get(hass).async_get_issue(DOMAIN, "missing_entities")
     assert issue is not None
     assert "light.does_not_exist" in issue.translation_placeholders["entities"]
+
+
+async def test_call_without_supervisor_is_reported(
+    hass: HomeAssistant, base_states, freezer: FrozenDateTimeFactory
+) -> None:
+    """Without the Supervisor there is no hassio.addon_stdin: shown under repairs."""
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(call_addon="abcd_ha-sip", call_targets=["sip:1@x"]))
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, "missing_entities")
+    assert issue is not None
+    assert "hassio.addon_stdin" in issue.translation_placeholders["entities"]
 
 
 async def test_test_button(
@@ -617,7 +701,7 @@ async def test_persons_by_wifi(
     await advance(hass, freezer, 20 * 60)
     assert _state(hass) == "disarmed"
     # the last person leaves: warning, then armed
-    await set_state(hass, WIFI_B, "unavailable")
+    await set_state(hass, WIFI_B, "<not connected>")
     await advance(hass, freezer, 150)
     assert any("Nobody" in c.data["message"] for c in calls["notify"])
     await advance(hass, freezer, 5 * 60 + 30)
@@ -691,3 +775,123 @@ async def test_simulate_only_in_test_mode(
     await _arm(hass)
     assert not entry.runtime_data.simulate_trigger()
     assert _state(hass) == "armed_away"
+
+
+async def test_lock_coming_back_does_not_disarm(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    """A lock that reconnects reports 'unlocked' again: no unlocking by a person."""
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(lock=LOCK))
+    await set_state(hass, LOCK, "unavailable")
+    await _arm(hass)
+    await set_state(hass, LOCK, "unlocked")
+    assert _state(hass) == "armed_away"
+    await set_state(hass, LOCK, "locked")
+    await set_state(hass, LOCK, "unlocked")
+    assert _state(hass) == "disarmed"
+
+
+async def test_jammed_lock_warns_and_retries(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(**REACTIONS))
+    await _arm(hass)
+    assert len(calls["lock"]) == 1
+    await set_state(hass, LOCK, "locking")
+    await set_state(hass, LOCK, "jammed")
+    assert _state(hass) == "armed_away"
+    assert any("retried" in c.data["message"] for c in calls["notify"])
+    await advance(hass, freezer, 11)
+    assert len(calls["lock"]) == 2
+
+
+async def test_unavailable_sensor_is_reported_while_armed(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry())
+    # disarmed: nothing is reported
+    await set_state(hass, DOOR, "unavailable")
+    await advance(hass, freezer, 120)
+    assert not any(c.data["title"] == "Sensor unavailable" for c in calls["notify"])
+    await set_state(hass, DOOR, "off")
+    await _arm(hass)
+    # a short drop-out is not reported
+    await set_state(hass, WINDOW, "unavailable")
+    await advance(hass, freezer, 30)
+    await set_state(hass, WINDOW, "off")
+    await advance(hass, freezer, 60)
+    assert not any(c.data["title"] == "Sensor unavailable" for c in calls["notify"])
+    # gone for longer: reported once
+    await set_state(hass, WINDOW, "unavailable")
+    await advance(hass, freezer, 180)
+    reports = [c for c in calls["notify"] if c.data["title"] == "Sensor unavailable"]
+    assert len(reports) == 1
+    assert "Kitchen window" in reports[0].data["message"]
+    assert _state(hass) == "armed_away"
+
+
+async def test_sirens_and_sound_file(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    """Alarm sound without Alexa: siren entities and a file on the speakers."""
+    freezer.move_to(START)
+    media = "media-source://media_source/local/alarm.mp3"
+    options = {
+        "sirens": ["siren.hall"],
+        "volume_players": ["media_player.kitchen"],
+        "sound_media": media,
+    }
+    await setup_entry(hass, make_entry(**options))
+    await _arm(hass)
+    await set_state(hass, WINDOW, "on")
+    assert calls["siren_on"][0].data["entity_id"] == ["siren.hall"]
+    assert calls["play_media"][0].data["media_content_id"] == media
+    assert calls["sound"] == []
+    await _disarm(hass)
+    assert calls["siren_off"][-1].data["entity_id"] == ["siren.hall"]
+
+
+async def test_night_door_sirens_switch_off(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(night_door_sensor=DOOR, night_sirens=["siren.hall"]))
+    await hass.services.async_call("switch", "turn_on", {"entity_id": NIGHT}, blocking=True)
+    await set_state(hass, DOOR, "on")
+    assert calls["siren_on"][0].data["entity_id"] == ["siren.hall"]
+    assert calls["siren_off"][0].data["entity_id"] == ["siren.hall"]
+
+
+async def test_only_configured_entities(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    """Switches and buttons of functions that are not set up do not exist."""
+    from homeassistant.helpers import entity_registry as er
+
+    persons = [_person("p_a", "Alex", WIFI_A)]
+    entry = make_entry(extra_subentries=persons, home_networks=[HOME])
+    await setup_entry(hass, entry)
+    registry = er.async_get(hass)
+    assert hass.states.get(AUTO) is not None
+    assert hass.states.get(ACK) is None
+    assert registry.async_get("button.alarm_assistant_test_message").entity_category == "config"
+    # the person is deleted: automatic arming and the presence sensor go away
+    hass.config_entries.async_remove_subentry(entry, "p_a")
+    await hass.async_block_till_done()
+    assert registry.async_get(AUTO) is None
+    assert registry.async_get("binary_sensor.alarm_assistant_alex_at_home") is None
+
+
+async def test_remove_entry_deletes_issue(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(START)
+    entry = make_entry(turn_on_entities=["light.does_not_exist"])
+    await setup_entry(hass, entry)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, "missing_entities") is not None
+    await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, "missing_entities") is None

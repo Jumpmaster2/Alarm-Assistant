@@ -8,14 +8,12 @@ time, automatic arming, daily resets).
 from __future__ import annotations
 
 import asyncio
-import hashlib
 from collections.abc import Callable, Coroutine, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import (
     CALLBACK_TYPE,
     Event,
@@ -72,6 +70,7 @@ from .const import (
     CONF_GARAGE_PANEL,
     CONF_GARAGE_TTS,
     CONF_GARAGE_TTS_REPEAT,
+    CONF_GARAGE_TTS_STREAM,
     CONF_GARAGE_TTS_TEXT,
     CONF_HINT_DOOR,
     CONF_HINT_DURATION,
@@ -91,6 +90,7 @@ from .const import (
     CONF_NIGHT_OFF_VOLUME,
     CONF_NIGHT_OFF_VOLUME_PLAYERS,
     CONF_NIGHT_RESET_AFTER,
+    CONF_NIGHT_SIRENS,
     CONF_NIGHT_SOUND_DEVICES,
     CONF_NIGHT_SPEAK,
     CONF_NIGHT_TAG,
@@ -101,6 +101,7 @@ from .const import (
     CONF_NOTIFY_ADMIN,
     CONF_NOTIFY_ALARM,
     CONF_NOTIFY_SUPPRESSED,
+    CONF_NOTIFY_UNAVAILABLE,
     CONF_ONLY_UNAVAILABLE,
     CONF_PERSON_COUNT,
     CONF_PERSON_IMAGE,
@@ -120,14 +121,18 @@ from .const import (
     CONF_RESET_AFTER,
     CONF_RESET_VOLUME,
     CONF_RETRY,
+    CONF_SIRENS,
     CONF_SOUND,
     CONF_SOUND_DEVICES,
+    CONF_SOUND_MEDIA,
     CONF_SPEAK_SERVICES,
     CONF_TEXT_PENDING,
     CONF_TEXT_TRIGGERED,
     CONF_TRIGGER_TIME,
     CONF_TURN_ON,
     CONF_TYPE,
+    CONF_UNAVAILABLE_DELAY,
+    CONF_UNKNOWN_PRESENCE,
     CONF_USE_ENTRY,
     CONF_USE_EXIT,
     CONF_VACUUM,
@@ -151,14 +156,15 @@ from .logic import auto_arm as aa
 from .logic import camera as cam
 from .logic import state_machine as sm
 from .logic.call import CallSettings, dial_input, plan
+from .logic.code import hash_code, is_legacy, verify_code
 from .logic.misc import anyone_connected, join_names, next_daily, tag_action
-from .logic.sensors import contact_counts, effective_state, motion_suppressed
+from .logic.sensors import INVALID, contact_counts, effective_state, motion_suppressed
 from .messages import resolve_language, text
 
 type AlarmConfigEntry = ConfigEntry[AlarmEngine]
 
-INVALID = (STATE_UNAVAILABLE, STATE_UNKNOWN)
 UNLOCKED_STATES = ("unlocked", "open", "opening")
+STATE_JAMMED = "jammed"
 # A lock that falls back to "unlocked" this soon after we locked it did not
 # lock (bolt blocked); this is no unlocking by a person.
 LOCK_SETTLE = 20
@@ -173,15 +179,20 @@ PAUSE_PTZ = 3
 FRIGATE_RESYNC = 10
 FRIGATE_RESYNC_MAX = 3
 FRIGATE_RESYNC_WINDOW = timedelta(minutes=10)
+# Every this many wrong codes in a row a message is sent.
+WRONG_CODE_ALERT = 5
+# Countries with an own variant of the spoken language.
+TTS_COUNTRIES = {
+    "de": ("DE", "AT", "CH", "LI", "LU", "BE"),
+    "en": ("US", "GB", "IE", "AU", "NZ", "CA", "ZA", "IN"),
+}
+# Reaction sequences of an alarm that end with disarming.
+ALARM_TASKS = ("call", "push", "siren", "announce", "announce_pending", "reactions")
 
 
 async def _sleep(seconds: float) -> None:
     """Pause inside a reaction sequence (patched in tests)."""
     await asyncio.sleep(seconds)
-
-
-def hash_code(code: str) -> str:
-    return hashlib.sha256(code.encode()).hexdigest()
 
 
 def parse_time(value: Any, fallback: str = "00:00:00") -> time:
@@ -281,19 +292,25 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         # test alarm: reactions switched off (None: no test)
         self.test: set[str] | None = None
         self.test_last: list[str] = []
+        self.wrong_codes = 0
+        # sensors reported as unavailable while armed (reported once until back)
+        self.unavailable_reported: set[str] = set()
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}"
         )
         self._unsubs: list[CALLBACK_TYPE] = []
         self._timers: dict[str, CALLBACK_TYPE] = {}
         self._tasks: dict[str, asyncio.Task] = {}
+        self._opts: dict[str, Any] = {**DEFAULTS, **entry.options}
         self._build()
+        self._loaded = self._config_snapshot()
 
     # ------------------------------------------------------------------ config
 
     @property
     def opts(self) -> dict[str, Any]:
-        return {**DEFAULTS, **self.config_entry.options}
+        """Options with defaults (the entry is reloaded when they change, except the code)."""
+        return self._opts
 
     def opt(self, key: str) -> Any:
         return self.opts.get(key, DEFAULTS.get(key))
@@ -310,7 +327,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
 
     @property
     def code_required(self) -> bool:
-        return bool(self.opt(CONF_CODE))
+        return bool(self.config_entry.options.get(CONF_CODE))
 
     @property
     def code_arm_required(self) -> bool:
@@ -329,6 +346,19 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     @property
     def call_configured(self) -> bool:
         return bool(self.opt(CONF_CALL_ADDON)) and bool(self.opt_list(CONF_CALL_TARGETS))
+
+    def _config_snapshot(self) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Configuration the engine was built from (without the code hash)."""
+        options = {k: v for k, v in self.config_entry.options.items() if k != CONF_CODE}
+        subentries = {
+            sub_id: (sub.subentry_type, sub.title, dict(sub.data))
+            for sub_id, sub in self.config_entry.subentries.items()
+        }
+        return options, subentries
+
+    def config_changed(self) -> bool:
+        """Something besides the code changed (then the entry is reloaded)."""
+        return self._config_snapshot() != self._loaded
 
     def _build(self) -> None:
         for sub_id, sub in self.config_entry.subentries.items():
@@ -349,7 +379,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                     ),
                     condition=data.get(CONF_ONLY_UNAVAILABLE) or None,
                     arm_cover=data.get(CONF_ARM_COVER) or None,
-                    arm_cover_position=int(data.get(CONF_ARM_COVER_POSITION, 20)),
+                    arm_cover_position=_as_int(data.get(CONF_ARM_COVER_POSITION)),
                     camera_preset=str(data.get(CONF_CAMERA_PRESET) or "").strip() or None,
                 )
             elif sub.subentry_type == SUBENTRY_CAMERA:
@@ -365,10 +395,20 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         sensors += [str(v) for v in (self.opt(CONF_WIFI_SENSORS) or []) if str(v).strip()]
         return list(dict.fromkeys(sensors))
 
+    @property
+    def unknown_home(self) -> bool:
+        """A phone or person without a known state counts as at home."""
+        return self.opt(CONF_UNKNOWN_PRESENCE) != aa.UNKNOWN_AWAY
+
+    @property
+    def call_language(self) -> str:
+        language = str(self.opt(CONF_CALL_LANGUAGE) or "").strip()
+        return self.language if language in ("", "auto") else language
+
     def person_home(self, person: Person) -> bool:
         """The phone of the person is connected to a home network."""
-        return not aa.away_by_wifi(
-            [self._value(person.wifi_sensor)], self.opt_list(CONF_HOME_NETWORKS)
+        return aa.at_home_by_wifi(
+            self._value(person.wifi_sensor), self.opt_list(CONF_HOME_NETWORKS), self.unknown_home
         )
 
     def sensor_by_entity(self, entity_id: str) -> list[Sensor]:
@@ -405,6 +445,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         """Home Assistant runs: check entities, start the time based parts."""
         self._check_missing()
         now = dt_util.utcnow()
+        self._check_unavailable(now)
         self._auto_arm_check(now)
         for camera in self.cameras.values():
             self._apply_frigate(camera)
@@ -491,7 +532,11 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     def _check_missing(self) -> None:
         registry = er.async_get(self.hass)
         missing = []
-        for ref in sorted(self._configured_entities()):
+        refs = self._configured_entities()
+        if self.call_configured:
+            # the call needs the Supervisor (Home Assistant OS or Supervised)
+            refs.add("hassio.addon_stdin")
+        for ref in sorted(refs):
             domain, _, name = ref.partition(".")
             if self.hass.states.get(ref) is not None or registry.async_get(ref) is not None:
                 continue
@@ -583,6 +628,16 @@ class AlarmEngine(DataUpdateCoordinator[None]):
 
         self._timers[key] = async_track_point_in_time(self.hass, fire, when)
 
+    def _stop_tasks(self, keys: Iterable[str]) -> list[str]:
+        """Cancel running reaction sequences, return the keys that were running."""
+        stopped = []
+        for key in keys:
+            task = self._tasks.pop(key, None)
+            if task is not None and not task.done():
+                task.cancel()
+                stopped.append(key)
+        return stopped
+
     def _cancel(self, key: str) -> None:
         if (old := self._timers.pop(key, None)) is not None:
             old()
@@ -647,7 +702,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     def _notify(self, targets: Iterable[str], title: str, message: str, **kw: Any) -> None:
         targets = list(targets)
         if targets:
-            self.hass.async_create_task(self._async_notify(targets, title, message, **kw))
+            self.config_entry.async_create_task(
+                self.hass, self._async_notify(targets, title, message, **kw)
+            )
 
     async def _async_announce(self, message: str, title: str) -> None:
         for entity_id in self._filter("announce", self.opt_list(CONF_ANNOUNCE_ENTITIES)):
@@ -743,6 +800,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             self._schedule_dock_grace()
         new = event.data["new_state"]
         old = event.data["old_state"]
+        if old is not None and new is not None and old.state == new.state:
+            return  # only attributes changed (e.g. battery of the vacuum)
         if (
             new is not None
             and new.state == sm.ON
@@ -762,7 +821,35 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         if motion != self.motion_active:
             self.motion_active = motion
             self._auto_arm_check(now)
+        self._check_unavailable(now)
         self._changed()
+
+    def _check_unavailable(self, now: datetime) -> None:
+        """Report sensors that are gone while armed (battery, radio, sabotage)."""
+        watch = self.state in sm.ARMED_STATES and bool(self.opt(CONF_NOTIFY_UNAVAILABLE))
+        delay = timedelta(seconds=float(self.opt(CONF_UNAVAILABLE_DELAY)))
+        for sensor in self.sensors.values():
+            key = f"unavailable_{sensor.sensor_id}"
+            if not watch or self._value(sensor.conf.entity_id) not in (None, *INVALID):
+                self._cancel(key)
+                self.unavailable_reported.discard(sensor.sensor_id)
+                continue
+            if sensor.sensor_id in self.unavailable_reported or key in self._timers:
+                continue
+            self._schedule(key, now + delay, lambda _t, s=sensor: self._report_unavailable(s))
+
+    def _report_unavailable(self, sensor: Sensor) -> None:
+        if self.state not in sm.ARMED_STATES:
+            return
+        if self._value(sensor.conf.entity_id) not in (None, *INVALID):
+            return
+        self.unavailable_reported.add(sensor.sensor_id)
+        self._log("log_unavailable", sensor=sensor.conf.name)
+        self._notify(
+            self._push(CONF_NOTIFY),
+            self._mark(self.t("title_unavailable")),
+            self._mark(self.t("push_unavailable", sensor=sensor.conf.name)),
+        )
 
     def _raw_motion(self, entity_id: str) -> None:
         """A motion sensor reported motion (before filtering)."""
@@ -806,10 +893,34 @@ class AlarmEngine(DataUpdateCoordinator[None]):
 
     # ------------------------------------------------------------------ panel
 
-    def check_code(self, code: str | None, arming: bool) -> bool:
+    async def async_check_code(self, code: str | None, arming: bool) -> bool:
         if not self.code_required or (arming and not self.code_arm_required):
             return True
-        return code is not None and hash_code(str(code)) == self.opt(CONF_CODE)
+        stored = str(self.config_entry.options.get(CONF_CODE))
+        if code is None or not await self.hass.async_add_executor_job(
+            verify_code, str(code), stored
+        ):
+            self._wrong_code()
+            return False
+        self.wrong_codes = 0
+        if is_legacy(stored):
+            # hash of an older version: store the code with a salt now
+            new = await self.hass.async_add_executor_job(hash_code, str(code))
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, options={**self.config_entry.options, CONF_CODE: new}
+            )
+        return True
+
+    def _wrong_code(self) -> None:
+        self.wrong_codes += 1
+        if self.wrong_codes % WRONG_CODE_ALERT:
+            return
+        self._log("log_wrong_code", count=self.wrong_codes)
+        self._notify(
+            self._push(CONF_NOTIFY),
+            self._mark(self.t("title_wrong_code")),
+            self._mark(self.t("push_wrong_code", count=self.wrong_codes)),
+        )
 
     # ------------------------------------------------------------------ test alarm
 
@@ -894,6 +1005,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         else:
             self._armed(automatic)
         self._camera_rules_changed()
+        self._check_unavailable(now)
         self._changed()
         return check
 
@@ -926,8 +1038,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         self.lock_retried = False
         self._lock_door()
         for entity_id in self._filter("armed_on", self.opt_list(CONF_ARM_ON_ENTITIES)):
-            self.hass.async_create_task(
-                self._async_call("homeassistant", "turn_on", {"entity_id": entity_id})
+            self.config_entry.async_create_task(
+                self.hass, self._async_call("homeassistant", "turn_on", {"entity_id": entity_id})
             )
 
     def _arm_covers(self) -> None:
@@ -947,12 +1059,13 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 current = -1
             if current > sensor.arm_cover_position:
                 self._log("log_cover", name=sensor.conf.name, position=sensor.arm_cover_position)
-                self.hass.async_create_task(
+                self.config_entry.async_create_task(
+                    self.hass,
                     self._async_call(
                         "cover",
                         "set_cover_position",
                         {"entity_id": sensor.arm_cover, "position": sensor.arm_cover_position},
-                    )
+                    ),
                 )
 
     def _lock_door(self) -> None:
@@ -964,11 +1077,13 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         door = self.opt(CONF_LOCK_DOOR)
         if door and self._value(door) != sm.OFF:
             return
-        if self._value(lock) in ("locked", "locking", STATE_UNAVAILABLE, STATE_UNKNOWN, None):
+        if self._value(lock) in ("locked", "locking", *INVALID, None):
             return
         self._log("log_locked")
         self.lock_sent = dt_util.utcnow()
-        self.hass.async_create_task(self._async_call("lock", "lock", {"entity_id": lock}))
+        self.config_entry.async_create_task(
+            self.hass, self._async_call("lock", "lock", {"entity_id": lock})
+        )
 
     def _lock_bounced(self, old: State | None, new: State) -> bool:
         """True if the lock fell back to unlocked right after our lock command."""
@@ -998,6 +1113,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     def disarm(self, by_lock: bool = False) -> None:
         if self.state == sm.DISARMED:
             return
+        if self.state == sm.TRIGGERED:
+            self._sirens_off()
         self.lock_sent = None
         for key in ("exit", "entry", "trigger_end", "lock_retry"):
             self._cancel(key)
@@ -1006,14 +1123,22 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         self.trip_names = []
         self.disarmed_since = dt_util.utcnow()
         self._log("log_disarmed_lock" if by_lock else "log_disarmed")
+        # calls, sound and announcements of a running alarm end with disarming
+        if "siren" in self._stop_tasks(ALARM_TASKS):
+            players = self._filter("volume", self.opt_list(CONF_VOLUME_PLAYERS))
+            if players:
+                self._task(
+                    "volume_reset", self._async_volume(players, float(self.opt(CONF_RESET_VOLUME)))
+                )
         for entity_id in self._filter("armed_on", self.opt_list(CONF_ARM_ON_ENTITIES)):
-            self.hass.async_create_task(
-                self._async_call("homeassistant", "turn_off", {"entity_id": entity_id})
+            self.config_entry.async_create_task(
+                self.hass, self._async_call("homeassistant", "turn_off", {"entity_id": entity_id})
             )
         for camera in self._cameras():
             self._camera_task(camera, "privacy", self._async_camera_disarmed(camera))
         self.test = None
         self._camera_rules_changed()
+        self._check_unavailable(self.disarmed_since)
         self._schedule(
             "auto_arm_retry",
             self.disarmed_since + timedelta(minutes=float(self.opt(CONF_RETRY))),
@@ -1079,17 +1204,24 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 devices=self._filter("sound", self.opt_list(CONF_SOUND_DEVICES)),
                 speak=self._filter("speak", self.opt_list(CONF_SPEAK_SERVICES)),
                 message=text_triggered,
+                sirens=self._filter("sirens", self.opt_list(CONF_SIRENS)),
+                media=self.opt(CONF_SOUND_MEDIA) if self._filter("sound", ["media"]) else None,
             ),
         )
         self._task("reactions", self._async_reactions())
-        if self.call_block_until is None or now >= self.call_block_until:
+        # the cool down only blocks a new call chain, the push is always sent
+        call = self.call_block_until is None or now >= self.call_block_until
+        if call and self.call_configured:
             self.call_block_until = now + timedelta(seconds=float(self.opt(CONF_CALL_COOLDOWN)))
-            self._task("call", self._async_alarm_messages(cause), restart=True)
+        self._task(
+            "call" if call else "push", self._async_alarm_messages(cause, call), restart=True
+        )
 
     def _trigger_over(self, now: datetime) -> None:
         if self.state != sm.TRIGGERED:
             return
         self._log("log_trigger_end")
+        self._sirens_off()
         if sm.state_after_trigger(bool(self.opt(CONF_DISARM_AFTER_TRIGGER))) == sm.DISARMED:
             self.disarm()
             return
@@ -1113,30 +1245,50 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         speak: list[str],
         message: str,
         turn_on: list[str] | None = None,
+        sirens: list[str] | None = None,
+        media: str | None = None,
+        sirens_off_after: bool = False,
     ) -> None:
-        """Volume up, alarm sound, spoken message, volume back."""
+        """Volume up, sirens, alarm sound, spoken message, volume back."""
         await self._async_volume(players, volume)
         if turn_on:
             await self._async_turn_on(turn_on, light_brightness=100)
+        if sirens:
+            await self._async_call("siren", "turn_on", {"entity_id": sirens})
         if players or turn_on:
             await _sleep(PAUSE_SOUND)
         await self._async_sound(devices, str(self.opt(CONF_SOUND)))
-        if devices:
+        if players and media:
+            await self._async_call(
+                "media_player",
+                "play_media",
+                {"entity_id": players, "media_content_id": media, "media_content_type": "music"},
+            )
+        if devices or (players and media):
             await _sleep(PAUSE_SOUND)
         await self._async_speak(speak, message)
-        if players:
+        off = bool(sirens) and sirens_off_after
+        if players or off:
             await _sleep(reset_after)
+        if players:
             await self._async_volume(players, reset_volume)
+        if off:
+            await self._async_call("siren", "turn_off", {"entity_id": sirens})
+
+    def _sirens_off(self) -> None:
+        """The alarm is over: switch the sirens off (also those left out in a test)."""
+        if sirens := self.opt_list(CONF_SIRENS):
+            self._task("sirens_off", self._async_call("siren", "turn_off", {"entity_id": sirens}))
 
     def _ack_entity(self) -> str | None:
         return er.async_get(self.hass).async_get_entity_id(
             "button", DOMAIN, f"{self.config_entry.entry_id}_call_acknowledge"
         )
 
-    async def _async_alarm_messages(self, cause: str) -> None:
+    async def _async_alarm_messages(self, cause: str, call_allowed: bool = True) -> None:
         """Phone call chain and push messages (the first call starts before the push)."""
         targets = self._filter("call", self.opt_list(CONF_CALL_TARGETS))
-        call = self.call_configured and bool(targets)
+        call = call_allowed and self.call_configured and bool(targets)
         message = self._mark(self.t("push_triggered", cause=cause))
         push = message + (self.t("push_call_started") if call else "")
         title = self._mark(self.t("title_alarm"))
@@ -1150,12 +1302,12 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             acknowledge=bool(self.opt(CONF_CALL_ACK)),
             wait=float(self.opt(CONF_CALL_WAIT)),
             platform=str(self.opt(CONF_CALL_TTS) or ""),
-            language=str(self.opt(CONF_CALL_LANGUAGE) or "de"),
+            language=self.call_language,
         )
         self.call_acked = False
         steps = plan(settings)
         for index, (target, ack) in enumerate(steps):
-            if index > 0 and self.call_acked:
+            if index > 0 and (self.call_acked or self.state == sm.DISARMED):
                 break
             self._log("log_call", target=f"#{index + 1}")
             data = dial_input(
@@ -1189,10 +1341,13 @@ class AlarmEngine(DataUpdateCoordinator[None]):
 
     def _away_now(self) -> bool:
         if self.opt(CONF_PRESENCE_MODE) == aa.MODE_PERSONS:
-            return aa.away_by_persons(self._value(p) for p in self.opt_list(CONF_PERSONS))
+            return aa.away_by_persons(
+                (self._value(p) for p in self.opt_list(CONF_PERSONS)), self.unknown_home
+            )
         return aa.away_by_wifi(
             (self._value(s) for s in self.wifi_sensors()),
             self.opt_list(CONF_HOME_NETWORKS),
+            self.unknown_home,
         )
 
     def _initial_away_since(self) -> datetime:
@@ -1294,9 +1449,17 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     def _on_lock(self, event: Event[EventStateChangedData]) -> None:
         new = event.data["new_state"]
         old = event.data["old_state"]
-        if new is None or new.state not in UNLOCKED_STATES:
+        if new is None:
             return
-        if old is not None and old.state == new.state:
+        if new.state == STATE_JAMMED:
+            if self.state in sm.ARMED_STATES and (old is None or old.state != STATE_JAMMED):
+                self._lock_failed()
+            return
+        if new.state not in UNLOCKED_STATES:
+            return
+        # a lock that comes back (radio, bridge, battery) reports its state again,
+        # this is no unlocking by a person
+        if old is None or old.state in INVALID or old.state == new.state:
             return
         if self.state in sm.ARMED_STATES and self._lock_bounced(old, new):
             self._lock_failed()
@@ -1413,6 +1576,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 speak=self.opt_list(CONF_NIGHT_SPEAK),
                 message=self.opt(CONF_NIGHT_TEXT) or self.t("announce_night_door"),
                 turn_on=self.opt_list(CONF_NIGHT_TURN_ON),
+                sirens=self.opt_list(CONF_NIGHT_SIRENS),
+                sirens_off_after=True,
             ),
         )
 
@@ -1543,15 +1708,18 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 restart=True,
             )
 
-    def _frigate_switches(self, camera: Camera) -> list[str]:
+    def _frigate_lists(self, camera: Camera) -> tuple[list[str], list[str]]:
+        """Recording and detection switches of the camera."""
         record = [str(e) for e in camera.conf.get(CONF_RECORD_SWITCHES) or []]
         detect = [str(e) for e in camera.conf.get(CONF_DETECT_SWITCHES) or []]
+        return record, detect
+
+    def _frigate_switches(self, camera: Camera) -> list[str]:
+        record, detect = self._frigate_lists(camera)
         return record + detect
 
     def _frigate_split(self, camera: Camera, mode: str) -> tuple[list[str], list[str]]:
-        record = [str(e) for e in camera.conf.get(CONF_RECORD_SWITCHES) or []]
-        detect = [str(e) for e in camera.conf.get(CONF_DETECT_SWITCHES) or []]
-        return cam.frigate_split(mode, record, detect)
+        return cam.frigate_split(mode, *self._frigate_lists(camera))
 
     def _frigate_deviates(self, camera: Camera) -> bool:
         """A loaded switch of the camera is not in the state the rules want."""
@@ -1649,8 +1817,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             self._cancel(f"garage_{garage.garage_id}")
             if self._value(panel) != sm.DISARMED:
                 self._log("log_garage_disarmed")
-                self.hass.async_create_task(
-                    self._async_call("alarm_control_panel", "alarm_disarm", {"entity_id": panel})
+                self.config_entry.async_create_task(
+                    self.hass,
+                    self._async_call("alarm_control_panel", "alarm_disarm", {"entity_id": panel}),
                 )
             return
         delay = timedelta(minutes=float(garage.conf.get(CONF_GARAGE_DELAY, 2)))
@@ -1666,8 +1835,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         if self._value(panel) == sm.ARMED_AWAY:
             return
         self._log("log_garage_armed")
-        self.hass.async_create_task(
-            self._async_call("alarm_control_panel", "alarm_arm_away", {"entity_id": panel})
+        self.config_entry.async_create_task(
+            self.hass,
+            self._async_call("alarm_control_panel", "alarm_arm_away", {"entity_id": panel}),
         )
 
     @callback
@@ -1700,7 +1870,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 continue
             if self._value(garage.conf.get(CONF_GARAGE_PANEL)) != sm.ARMED_AWAY:
                 continue
-            self.hass.async_create_task(self._async_garage_motion(garage, new.name))
+            self.config_entry.async_create_task(
+                self.hass, self._async_garage_motion(garage, new.name)
+            )
 
     async def _async_garage_motion(self, garage: Garage, camera: str) -> None:
         await self._async_notify(
@@ -1715,10 +1887,18 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                     "TTS",
                     data={
                         "tts_text": tts,
-                        "media_stream": "alarm_stream_max",
-                        "tts_language": "de-DE" if self.language == "de" else "en-US",
+                        "media_stream": str(garage.conf.get(CONF_GARAGE_TTS_STREAM)),
+                        "tts_language": self._tts_language(),
                     },
                 )
+
+    def _tts_language(self) -> str:
+        """Language and country for spoken push messages, e.g. de-AT."""
+        country = (self.hass.config.country or "").upper()
+        lang = self.language
+        if country in TTS_COUNTRIES[lang]:
+            return f"{lang}-{country}"
+        return "de-DE" if lang == "de" else "en-US"
 
     # ------------------------------------------------------------------ diagnostics
 

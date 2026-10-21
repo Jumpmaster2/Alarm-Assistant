@@ -92,6 +92,9 @@ def calls(hass: HomeAssistant) -> dict[str, list[ServiceCall]]:
         "lock": async_mock_service(hass, "lock", "lock"),
         "stdin": async_mock_service(hass, "hassio", "addon_stdin"),
         "select": async_mock_service(hass, "select", "select_option"),
+        "siren_on": async_mock_service(hass, "siren", "turn_on"),
+        "siren_off": async_mock_service(hass, "siren", "turn_off"),
+        "play_media": async_mock_service(hass, "media_player", "play_media"),
     }
 
 

@@ -2,7 +2,8 @@
 // Plain web component without build step; uses only the hass object and the
 // WebSocket commands of the integration.
 
-import { LABELS } from "./labels.js";
+// labels.js gets the same version as this module, so a browser cache never mixes versions
+const { LABELS } = await import(new URL(`./labels.js${new URL(import.meta.url).search}`, import.meta.url));
 
 const UI = {
   de: {
@@ -42,6 +43,7 @@ const UI = {
     save: "Speichern",
     saved: "Gespeichert",
     cancel: "Abbrechen",
+    ok: "OK",
     delete: "Löschen",
     back: "Zurück",
     add: "Hinzufügen",
@@ -51,7 +53,8 @@ const UI = {
     none: "–",
     advanced: "Erweitert",
     newCode: "Neuer Code",
-    newCodeHelp: "Leer lassen, um den bisherigen Code zu behalten.",
+    newCodeHelp: "4 bis 10 Ziffern. Leer lassen, um den bisherigen Code zu behalten.",
+    codeConfirm: "Code wiederholen",
     removeCode: "Code entfernen",
     codeSet: "Code ist gesetzt",
     codeNotSet: "Kein Code",
@@ -106,6 +109,7 @@ const UI = {
     },
     types: { door: "Tür", window: "Fenster", motion: "Bewegung", other: "Sonstiges" },
     presenceModes: { wifi: "WLAN der Handys", persons: "Home-Assistant-Personen" },
+    unknownPresence: { home: "Zuhause", away: "Abwesend" },
     languages: { auto: "Auto", de: "Deutsch", en: "English" },
     weekdays: { mon: "Mo", tue: "Di", wed: "Mi", thu: "Do", fri: "Fr", sat: "Sa", sun: "So" },
     columns: { name: "Name", type: "Typ", state: "Zustand", behaviour: "Verhalten" },
@@ -115,6 +119,20 @@ const UI = {
       name_required: "Bitte einen Namen eingeben.",
       entity_required: "Bitte eine Entität wählen.",
       type_required: "Bitte einen Typ wählen.",
+      code_invalid: "Der Code muss aus 4 bis 10 Ziffern bestehen.",
+      code_mismatch: "Die beiden Codes stimmen nicht überein.",
+    },
+    fieldErrors: {
+      out_of_range: "Wert außerhalb des erlaubten Bereichs",
+      not_a_number: "bitte eine Zahl eingeben",
+      not_a_list: "ungültige Liste",
+      not_bool: "ungültiger Schalterwert",
+      invalid_entity: "keine gültige Entitäts-ID (Format domain.name)",
+      invalid_choice: "ungültige Auswahl",
+      invalid_time: "ungültige Uhrzeit (HH:MM)",
+      unknown_option: "unbekannte Einstellung",
+      already_configured: "diese Entität ist bereits als Sensor angelegt",
+      wifi_required: "die Garage braucht WLAN-Sensoren (Personen oder weitere WLAN-Sensoren unter Anwesenheit)",
     },
     loadError: "Konfiguration konnte nicht geladen werden",
     up: "nach oben",
@@ -137,6 +155,7 @@ const UI = {
       call: "Telefonanruf",
       announce: "Durchsage",
       volume: "Lautstärke hoch",
+      sirens: "Sirenen",
       sound: "Alarmton",
       speak: "Gesprochener Text",
       lights: "Licht und Schalter",
@@ -185,6 +204,7 @@ const UI = {
     save: "Save",
     saved: "Saved",
     cancel: "Cancel",
+    ok: "OK",
     delete: "Delete",
     back: "Back",
     add: "Add",
@@ -194,7 +214,8 @@ const UI = {
     none: "–",
     advanced: "Advanced",
     newCode: "New code",
-    newCodeHelp: "Leave empty to keep the current code.",
+    newCodeHelp: "4 to 10 digits. Leave empty to keep the current code.",
+    codeConfirm: "Repeat code",
     removeCode: "Remove code",
     codeSet: "A code is set",
     codeNotSet: "No code",
@@ -249,6 +270,7 @@ const UI = {
     },
     types: { door: "Door", window: "Window", motion: "Motion", other: "Other" },
     presenceModes: { wifi: "Wi-Fi of the phones", persons: "Home Assistant persons" },
+    unknownPresence: { home: "At home", away: "Away" },
     languages: { auto: "Auto", de: "Deutsch", en: "English" },
     weekdays: { mon: "Mo", tue: "Tu", wed: "We", thu: "Th", fri: "Fr", sat: "Sa", sun: "Su" },
     columns: { name: "Name", type: "Type", state: "State", behaviour: "Behaviour" },
@@ -258,6 +280,20 @@ const UI = {
       name_required: "Please enter a name.",
       entity_required: "Please choose an entity.",
       type_required: "Please choose a type.",
+      code_invalid: "The code must have 4 to 10 digits.",
+      code_mismatch: "The two codes do not match.",
+    },
+    fieldErrors: {
+      out_of_range: "value outside the allowed range",
+      not_a_number: "please enter a number",
+      not_a_list: "invalid list",
+      not_bool: "invalid switch value",
+      invalid_entity: "not a valid entity id (format domain.name)",
+      invalid_choice: "invalid choice",
+      invalid_time: "invalid time (HH:MM)",
+      unknown_option: "unknown setting",
+      already_configured: "this entity is already set up as a sensor",
+      wifi_required: "the garage needs Wi-Fi sensors (persons or additional Wi-Fi sensors under Presence)",
     },
     loadError: "Could not load the configuration",
     up: "up",
@@ -280,6 +316,7 @@ const UI = {
       call: "Phone call",
       announce: "Announcement",
       volume: "Volume up",
+      sirens: "Sirens",
       sound: "Alarm sound",
       speak: "Spoken text",
       lights: "Lights and switches",
@@ -338,6 +375,8 @@ const SETTINGS = {
         ["exit_delay", "number", { unit: "s", min: 0, max: 600 }],
         ["trigger_time", "number", { unit: "s", min: 0, max: 7200 }],
         ["disarm_after_trigger", "bool"],
+        ["notify_unavailable", "bool"],
+        ["unavailable_delay", "number", { unit: "s", min: 0, max: 3600 }],
       ],
     },
     { id: "code", icon: "mdi:dialpad", special: "code" },
@@ -372,8 +411,10 @@ const SETTINGS = {
         ["alarm_volume", "number", { min: 0, max: 1, step: 0.01 }],
         ["reset_volume", "number", { min: 0, max: 1, step: 0.01 }],
         ["reset_volume_after", "number", { unit: "s", min: 0, max: 600 }],
+        ["sirens", "entities", { domains: ["siren"] }],
         ["sound_devices", "devices"],
         ["sound", "text"],
+        ["sound_media", "text"],
         ["speak_services", "services"],
       ],
     },
@@ -425,6 +466,7 @@ const SETTINGS = {
         ["prewarn_time", "number", { unit: "min", min: 0, max: 60 }],
         ["retry_after_disarm", "number", { unit: "min", min: 0, max: 120 }],
         ["presence_stable", "number", { unit: "min", min: 0, max: 60 }],
+        ["unknown_presence", "select", { choices: "unknownPresence" }],
       ],
     },
   ],
@@ -455,6 +497,7 @@ const SETTINGS = {
         ["night_tag", "tag"],
         ["night_turn_on_entities", "entities", {}],
         ["night_volume_players", "entities", { domains: ["media_player"] }],
+        ["night_sirens", "entities", { domains: ["siren"] }],
         ["night_sound_devices", "devices"],
         ["night_speak_services", "services"],
         ["night_text", "text"],
@@ -546,8 +589,9 @@ const SUBS = {
       ["garage_tts_services", "services"],
       ["garage_tts_text", "text"],
       ["garage_tts_repeat", "number", { min: 0, max: 10 }],
+      ["garage_tts_stream", "text"],
     ],
-    defaults: { garage_arm_delay: 2, garage_tts_repeat: 2, garage_networks: [], garage_motion: [] },
+    defaults: { garage_arm_delay: 2, garage_tts_repeat: 2, garage_tts_stream: "alarm_stream_max", garage_networks: [], garage_motion: [] },
   },
 };
 
@@ -890,7 +934,8 @@ class AlarmAssistantPanel extends HTMLElement {
       ["call", "mdi:phone-alert", o.call_addon ? (o.call_targets || []).map((t, i) => [t, `${i + 1}. ${t}`]) : []],
       ["announce", "mdi:bullhorn-outline", entityItems(o.announce_entities)],
       ["volume", "mdi:volume-high", entityItems(o.volume_players)],
-      ["sound", "mdi:alarm-bell", (o.sound_devices || []).map((id) => [id, devices.get(id) || id])],
+      ["sirens", "mdi:alarm-light", entityItems(o.sirens)],
+      ["sound", "mdi:alarm-bell", [...(o.sound_devices || []).map((id) => [id, devices.get(id) || id]), ...(o.sound_media && (o.volume_players || []).length ? [["media", o.sound_media]] : [])]],
       ["speak", "mdi:account-voice", (o.speak_services || []).map((s) => [s, pretty(s)])],
       ["lights", "mdi:lightbulb-group-outline", entityItems(o.turn_on_entities)],
       ["covers", "mdi:window-shutter", entityItems(o.close_covers)],
@@ -1020,6 +1065,8 @@ class AlarmAssistantPanel extends HTMLElement {
         <label class="field"><span class="lbl">${esc(ui.newCode)}</span>
           <input type="password" inputmode="numeric" autocomplete="new-password" data-card-id="code" data-k="new_code" value="${esc(draft.new_code || "")}">
           <small>${esc(ui.newCodeHelp)}</small></label>
+        <label class="field"><span class="lbl">${esc(ui.codeConfirm)}</span>
+          <input type="password" inputmode="numeric" autocomplete="new-password" data-card-id="code" data-k="code_confirm" value="${esc(draft.code_confirm || "")}"></label>
         ${this._toggle("code", "remove_code", ui.removeCode, "", !!draft.remove_code)}
         ${this._toggle("code", "code_arm_required", ui.codeArm, "", !!codeArm)}
       </div>
@@ -1396,7 +1443,7 @@ class AlarmAssistantPanel extends HTMLElement {
     const data = { entity_id: panelId };
     const needCode = attrs.code_format && (action === "disarm" || attrs.code_arm_required);
     if (needCode) {
-      const code = prompt(this.ui.enterCode);
+      const code = await this._askCode();
       if (code === null) return;
       data.code = code;
     }
@@ -1407,13 +1454,46 @@ class AlarmAssistantPanel extends HTMLElement {
     }
   }
 
+  _askCode() {
+    // own dialog: the code is masked (prompt() shows it in plain text)
+    return new Promise((resolve) => {
+      const ui = this.ui;
+      const overlay = document.createElement("div");
+      overlay.className = "overlay";
+      overlay.innerHTML = `<form class="card dialog">
+        <h2><ha-icon icon="mdi:dialpad"></ha-icon>${esc(ui.enterCode)}</h2>
+        <input type="password" inputmode="numeric" autocomplete="off" name="code">
+        <div class="actions"><button type="button" class="btn" data-dialog="cancel">${esc(ui.cancel)}</button>
+          <button type="submit" class="btn primary">${esc(ui.ok)}</button></div></form>`;
+      const done = (value) => {
+        overlay.remove();
+        resolve(value);
+      };
+      const form = overlay.querySelector("form");
+      form.addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        done(form.elements.code.value);
+      });
+      overlay.querySelector("[data-dialog=cancel]").addEventListener("click", () => done(null));
+      overlay.addEventListener("keydown", (ev) => ev.key === "Escape" && done(null));
+      this.shadowRoot.appendChild(overlay);
+      form.elements.code.focus();
+    });
+  }
+
   async _saveCard(cardId, button) {
     const draft = this._drafts[cardId];
     if (!draft) return;
     const msg = { type: "alarm_assistant/save_options", options: {} };
     if (cardId === "code") {
       if (draft.remove_code) msg.remove_code = true;
-      else if (draft.new_code) msg.code = String(draft.new_code);
+      else if (draft.new_code) {
+        if (String(draft.new_code) !== String(draft.code_confirm || "")) {
+          this._cardMessage(button, this.ui.errors.code_mismatch, true);
+          return;
+        }
+        msg.code = String(draft.new_code);
+      }
       if ("code_arm_required" in draft) msg.options.code_arm_required = draft.code_arm_required;
     } else {
       msg.options = { ...draft };
@@ -1426,7 +1506,7 @@ class AlarmAssistantPanel extends HTMLElement {
       this._toast(this.ui.saved);
     } catch (err) {
       button.disabled = false;
-      this._cardMessage(button, err.message || String(err), true);
+      this._cardMessage(button, this._errorText(err), true);
     }
   }
 
@@ -1450,9 +1530,16 @@ class AlarmAssistantPanel extends HTMLElement {
       this._toast(this.ui.saved);
     } catch (err) {
       button.disabled = false;
-      const text = this.ui.errors[err.message] || err.message || String(err);
-      this._cardMessage(button, text, true);
+      this._cardMessage(button, this._errorText(err), true);
     }
+  }
+
+  _errorText(err) {
+    const message = err?.message || String(err);
+    if (this.ui.errors[message]) return this.ui.errors[message];
+    const [field, code] = message.split(":");
+    if (code && this.ui.fieldErrors[code]) return `${this.label(field)[0]}: ${this.ui.fieldErrors[code]}`;
+    return message;
   }
 
   _cardMessage(el, text, bad = false) {
@@ -1576,6 +1663,8 @@ summary { cursor:pointer; font-weight:500; color:var(--primary-color); }
 .test-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-top:8px; }
 .test-running { border-color:var(--warning-color, #ffa600); margin-bottom:16px; display:flex; flex-direction:column; gap:12px; }
 .badge.test { background:var(--warning-color, #ffa600); color:#000; border:none; font-size:12px; vertical-align:middle; }
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; z-index:20; padding:16px; }
+.dialog { width:100%; max-width:320px; display:flex; flex-direction:column; gap:12px; }
 .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--primary-text-color); color:var(--primary-background-color); padding:10px 18px; border-radius:8px; z-index:10; }
 .toast.bad { background:var(--error-color, #db4437); color:#fff; }
 @media (max-width: 700px) {

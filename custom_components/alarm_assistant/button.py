@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .engine import AlarmConfigEntry, AlarmEngine
-from .entity import AlarmEntity
+from .entity import AlarmEntity, remove_entities
 
 PARALLEL_UPDATES = 0
 
@@ -18,7 +19,13 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     engine = entry.runtime_data
-    async_add_entities([AcknowledgeButton(engine), TestButton(engine)])
+    entities: list[ButtonEntity] = [TestButton(engine)]
+    if engine.call_configured:
+        # pressed by ha-sip when the callee presses 1
+        entities.append(AcknowledgeButton(engine))
+    else:
+        remove_entities(hass, entry.entry_id, "button", ["call_acknowledge"])
+    async_add_entities(entities)
 
 
 class AcknowledgeButton(AlarmEntity, ButtonEntity):
@@ -33,6 +40,8 @@ class AcknowledgeButton(AlarmEntity, ButtonEntity):
 
 class TestButton(AlarmEntity, ButtonEntity):
     """Send a test message with the open sensors (nothing else happens)."""
+
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, engine: AlarmEngine) -> None:
         super().__init__(engine, "test")

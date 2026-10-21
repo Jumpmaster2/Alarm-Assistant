@@ -2,9 +2,17 @@
 
 [Deutsche Version](README.md)
 
-Custom integration for Home Assistant: an alarm panel with everything that otherwise lives in many automations, scripts and helpers. Arming and disarming (also automatically when everybody is away), entry and exit delay, ignoring open windows, announcements and alarm sound on Alexa devices, lights and covers on alarm, phone call with acknowledgement through the ha-sip add-on, door lock, camera control, garage cameras, a night door alarm and a window open hint at the front door. Everything is set up in the UI, no own automations are needed.
+Custom integration for Home Assistant: an alarm panel with everything that otherwise lives in many automations, scripts and helpers. Arming and disarming (also automatically when everybody is away), entry and exit delay, ignoring open windows, announcements and alarm sound (sirens, speakers or Alexa devices), lights and covers on alarm, phone call with acknowledgement through the ha-sip add-on, door lock, camera control, garage cameras, a night door alarm and a window open hint at the front door. Everything is set up in the UI, no own automations are needed.
 
-> Status: version 0.4.3.
+## Requirements
+
+* Home Assistant 2026.10 or newer.
+* Optional, depending on the function:
+  * **Alarm sound:** siren entities (`siren.*`), speakers (`media_player.*`) for a sound file and/or Echo devices through the **Alexa Devices** integration.
+  * **Spoken texts:** a `notify` service that speaks (e.g. Alexa Media).
+  * **Phone call:** Home Assistant OS or Supervised with the **ha-sip** add-on.
+  * **Presence by Wi-Fi:** companion app with the Wi-Fi sensor (`sensor.<phone>_wifi_connection`); alternatively Home Assistant persons.
+  * **Cameras:** privacy switch / PTZ select of the camera, optionally Frigate switches.
 
 ## How it works
 
@@ -13,10 +21,10 @@ The integration is event driven: it only reacts to state changes of the configur
 ### Alarm panel
 
 * Mode **away** with exit delay (0 = armed immediately), entry delay and trigger time. Afterwards armed again or, if set, disarmed.
-* Optional code (for disarming, optionally also for arming). Only a hash is stored.
+* Optional code (for disarming, optionally also for arming). The code has 4 to 10 digits; only a salted hash (PBKDF2) is stored. Codes of older versions keep working and are converted at the next correct disarming. Every 5 wrong entries in a row a message is sent.
 * **Sensors** are added one by one (sub item "Sensor"): door (delayed), window (immediate), motion (delayed, may be active at arming) or other. Every property can be changed per sensor.
 * **Open windows** are ignored from arming until disarming, a notification lists them. An open door prevents arming (with a notification), except during an exit delay.
-* A sensor that becomes unavailable does not trigger. If it was closed before and comes back open, it triggers.
+* A sensor that becomes unavailable does not trigger. If it was closed before and comes back open, it triggers. If a sensor is unavailable while armed for longer than the configured delay (default 60 s), a push message is sent (can be switched off).
 * **Conditional contacts:** a sensor can count only while another entity is unavailable, e.g. a balcony door that is open for the hose of a portable air conditioner. If it is open at arming and does not count, a cover can move to a position.
 * After a restart an armed panel stays armed. A running alarm is not repeated.
 
@@ -28,20 +36,21 @@ The integration is event driven: it only reacts to state changes of the configur
 ### On alarm
 
 * Announcement to notify entities (e.g. Alexa announcement everywhere) with an own text, also when the entry delay starts.
-* Alarm sound: volume up, sound on Alexa devices, spoken text, volume back after a while.
+* Alarm sound: volume up, siren entities (`siren.*`) on, sound on Alexa devices and/or a sound file (e.g. `media-source://media_source/local/alarm.mp3`) on the speakers, spoken text, volume back after a while. Sirens go off when disarmed and after the trigger time. Alexa is not required.
 * Turn on lights and switches, close covers.
-* **Phone call** through the ha-sip add-on: numbers in order. Every number except the last can acknowledge with key 1 (the button "Acknowledge call" is pressed), then nobody else is called. The first call starts before the push messages. No new call within the cool down.
+* **Phone call** through the ha-sip add-on: numbers in order. Every number except the last can acknowledge with key 1 (the button "Acknowledge call" is pressed), then nobody else is called. The first call starts before the push messages. No new call within the cool down; push messages are sent for every alarm. Disarming ends the call chain, the alarm sound and the announcements at once and resets the volume.
 * Push to the phones and additional services (e.g. Pushover) with the **cause**: the sensors that tripped and, if a camera sees a person right now, that one too.
 
 ### Automatic arming
 
-* Presence by **persons** (sub item "Person"): every person has the Wi-Fi sensor of their phone. While the phone is connected to a home network the person is at home; each person gets a presence sensor. Alternatively Home Assistant persons (`person.*`).
+* Presence by **persons** (sub item "Person"): every person has the Wi-Fi sensor of their phone. While the phone is connected to a home network the person is at home; each person gets a presence sensor. Alternatively Home Assistant persons (`person.*`). A phone (or person) without a known state, e.g. switched off or with an empty battery, counts as at home by default; see "Phone without a known state counts as".
 * When nobody is at home (for a minimum time), there was no motion for a while and "children alone at home" is off, a warning is sent. If everything is still true afterwards and there was no motion, the panel is armed. After disarming it waits before checking again.
 * Can be switched off with the switch **Automatic arming**.
 
 ### Door lock and children
 
-* Unlocking or opening the lock disarms.
+* Unlocking or opening the lock disarms. A lock that comes back from "unavailable" (radio, bridge, battery) as unlocked does not count as unlocking.
+* If the lock falls back after locking or reports "jammed", the panel stays armed, a message is sent and locking is retried once.
 * Arming locks the door when it is closed and no children are alone at home.
 * **Children alone at home** (switch) prevents automatic arming and locking and controls the camera. It is reset a configurable time after unlocking and at night.
 
@@ -57,7 +66,8 @@ The integration is event driven: it only reacts to state changes of the configur
 ### Garage (sub item "Garage")
 
 * A second alarm panel (e.g. Blink) is disarmed while a phone is connected to the garage network and armed again some time after leaving.
-* Motion while armed: push and spoken warning on the phones (companion app).
+* Motion while armed: push and spoken warning on the phones (companion app, spoken only on Android; the audio stream can be set).
+* The garage needs Wi-Fi sensors (person sub item or additional Wi-Fi sensors), otherwise the garage networks are rejected.
 * Switch **Garage automatic**.
 
 ### Night door alarm
@@ -76,6 +86,14 @@ The integration is event driven: it only reacts to state changes of the configur
 3. Install "Alarm Assistant" and restart Home Assistant.
 4. Add the integration under Settings > Devices & services.
 
+## Manual installation
+
+1. Copy the folder `custom_components/alarm_assistant` of this repository (or of a release ZIP) to `<config>/custom_components/alarm_assistant`.
+2. Restart Home Assistant.
+3. Settings > Devices & services > Add integration > "Alarm Assistant".
+
+Update: replace the folder and restart. Removal: delete the integration under Devices & services (the stored state and repair issues are removed with it), then delete the folder.
+
 ## Configuration
 
 After the setup the sidebar has the page **Alarm Assistant** (administrators only, similar to Alarmo):
@@ -87,25 +105,82 @@ After the setup the sidebar has the page **Alarm Assistant** (administrators onl
 
 The settings can still be changed through the config flow as well:
 
-* **Setup:** notifications, alarm times and code.
-* **Options** (menu): notifications, alarm times and code, motion filter, reactions on alarm, phone call, automatic arming, door lock, night door alarm, children and hints.
+* **Setup:** notifications, alarm times and code; optionally existing door, window and motion sensors (by device class) are taken over as sensors right away.
+* **Options** (menu): alarm times and code, notifications, reactions on alarm, automatic arming, door lock, phone call, motion filter, night door alarm, children and hints. Every field has a description; incomplete input (e.g. a call without a number) is rejected with a hint.
 * **Sub items:** sensor, person, camera, garage (as many as needed).
 
-Configured entities or services that do not exist are reported under Repairs after the start.
+Configured entities or services that do not exist are reported under Repairs after the start. This includes the phone call without the Supervisor (Home Assistant Container/Core have no `hassio.addon_stdin`).
 
 ## Entities
 
 | Entity | Meaning |
 |---|---|
 | Alarm panel | armed away/disarmed, attributes: open and ignored sensors, cause |
-| Switches automatic arming, children alone at home | kept over restarts |
-| Switches night door alarm, camera live view, garage automatic | only when set up |
-| Binary sensors motion, contacts open, motion suppressed, warning | |
+| Switch children alone at home | kept over restarts |
+| Switches automatic arming, night door alarm, camera live view, garage automation | only when set up, kept over restarts |
+| Binary sensors motion, contacts open, warning | |
+| Binary sensor motion suppressed | diagnostic entity |
 | Binary sensor "<name> at home" | per person, from the phone's Wi-Fi |
 | Sensors cause, last alarm | |
-| Buttons acknowledge call, test message | the test message only sends a push with the open sensors |
+| Button acknowledge call | only with a phone call set up (pressed by ha-sip) |
+| Button test message | configuration entity, only sends a push with the open sensors |
+
+Entities of functions that are no longer set up (or of deleted persons) are removed automatically.
 
 The panel is used with the standard actions `alarm_control_panel.alarm_arm_away` and `alarm_control_panel.alarm_disarm`, e.g. from a button blueprint.
+
+## Options at a glance
+
+| Area | Option | Default |
+|---|---|---|
+| Alarm | Entry / exit delay | 30 s / 0 s |
+| | Trigger time, disarm afterwards | 1800 s, off (armed again) |
+| | Code (4–10 digits), also for arming | no code, off |
+| | Report unavailable sensors, delay | on, 60 s |
+| Notifications | Language of messages | Auto (like Home Assistant) |
+| | Push / additional alarm notifications / technical notifications | empty |
+| Reactions | Alarm volume, volume afterwards, reset after | 0.51, 0.2, 10 s |
+| | Sirens, Alexa sound, sound file | empty, `amzn_sfx_scifi_alarm_04`, empty |
+| Automatic arming | Presence by | Wi-Fi of the phones |
+| | No motion for / warning / wait after disarming / away for at least | 10 / 5 / 2 / 2 min |
+| | Phone without a known state counts as | at home |
+| Door lock | Unlocking disarms, lock when armed | on, on |
+| Phone call | Acknowledge with key 1, wait before the next number, language, cool down | on, 50 s, like the messages, 180 s |
+| Motion filter | Grace time after docking, report suppressed motion | 120 s, on |
+| Night door alarm | Switch off at, on days | 05:00, Mon–Fri |
+| Children and hints | Reset after unlocking, at night, hint duration | 10 min, 03:00, 30 s |
+
+Only values that differ from the default are stored; if a default changes in a new version it applies to existing installations too.
+
+## Example: flat
+
+1. Setup: push to `notify.mobile_app_phone`, entry delay 30 s, code `4711`; in the last step choose the front door, three windows and the hall motion sensor.
+2. Options › Reactions: siren `siren.hall`, turn on `light.hall`.
+3. A person sub item per phone with its Wi-Fi sensor, Options › Automatic arming: enter the home network.
+4. Page Alarm Assistant › Test alarm: arm as a test, simulate the trigger, check, disarm.
+
+## Troubleshooting
+
+| Problem | Check |
+|---|---|
+| "Cannot arm" | The named sensor is open and must not be. For windows switch on "Ignore when open at arming", for doors use an exit delay. |
+| No alarm sound | Speakers/sirens set? With Alexa: devices of the Alexa Devices integration chosen and the sound name correct? Use the test alarm. |
+| No call | Check Repairs (`hassio.addon_stdin` missing = no Supervisor), the slug of the ha-sip add-on and the numbers, look at the add-on log. |
+| Automatic arming does not work | Switch "Automatic arming" on? "Children alone at home" off? Home network written exactly like the Wi-Fi sensor shows it? A phone without a state counts as at home. The warning comes only after the quiet time without motion. |
+| Disarmed when the lock reconnects | Ignored since 0.4.6. If it still happens please open an issue with a debug log. |
+| Entity missing | Functions that are not set up have no entities (e.g. the automatic arming switch needs a home network and a phone). |
+
+### Debug logging
+
+Settings > Devices & services > Alarm Assistant > "Enable debug logging", reproduce the problem and switch it off again; the log is downloaded. Or in `configuration.yaml`:
+
+```yaml
+logger:
+  logs:
+    custom_components.alarm_assistant: debug
+```
+
+For an issue also download the diagnostics (integration › three dots › Download diagnostics). Code hash, phone numbers, network names, tag id and names are redacted there.
 
 ## Moving over
 
@@ -116,8 +191,12 @@ See [docs/migration.md](docs/migration.md).
 ```bash
 pip install -r requirements_test.txt ruff
 ruff check custom_components tests scripts
+ruff format --check custom_components tests scripts
+python scripts/build_labels.py --check   # panel labels from the translations
 pytest -q
 ```
+
+Run `python scripts/build_labels.py` after changing `strings.json`/`translations`.
 
 The tests with Home Assistant run on Linux. Before publishing, `scripts/check_privacy.py` checks with a local pattern list that no private data ends up in the repository.
 

@@ -42,6 +42,8 @@ CONF_DISARM_AFTER_TRIGGER = "disarm_after_trigger"
 CONF_CODE = "code"
 CONF_CODE_ARM = "code_arm_required"
 CONF_ARM_ON_ENTITIES = "armed_on_entities"
+CONF_NOTIFY_UNAVAILABLE = "notify_unavailable"
+CONF_UNAVAILABLE_DELAY = "unavailable_delay"
 
 # ---------- motion
 CONF_VACUUM = "vacuum"
@@ -55,6 +57,8 @@ CONF_ANNOUNCE_ENTITIES = "announce_entities"
 CONF_SPEAK_SERVICES = "speak_services"
 CONF_SOUND_DEVICES = "sound_devices"
 CONF_SOUND = "sound"
+CONF_SIRENS = "sirens"
+CONF_SOUND_MEDIA = "sound_media"
 CONF_VOLUME_PLAYERS = "volume_players"
 CONF_ALARM_VOLUME = "alarm_volume"
 CONF_RESET_VOLUME = "reset_volume"
@@ -82,6 +86,7 @@ CONF_QUIET = "quiet_time"
 CONF_PREWARN = "prewarn_time"
 CONF_RETRY = "retry_after_disarm"
 CONF_PRESENCE_STABLE = "presence_stable"
+CONF_UNKNOWN_PRESENCE = "unknown_presence"
 
 # ---------- lock
 CONF_LOCK = "lock"
@@ -100,6 +105,7 @@ CONF_NIGHT_OFF_TIME = "night_off_time"
 CONF_NIGHT_OFF_DAYS = "night_off_days"
 CONF_NIGHT_TURN_ON = "night_turn_on_entities"
 CONF_NIGHT_SOUND_DEVICES = "night_sound_devices"
+CONF_NIGHT_SIRENS = "night_sirens"
 CONF_NIGHT_VOLUME_PLAYERS = "night_volume_players"
 CONF_NIGHT_SPEAK = "night_speak_services"
 CONF_NIGHT_TEXT = "night_text"
@@ -125,12 +131,15 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_DISARM_AFTER_TRIGGER: False,
     CONF_CODE_ARM: False,
     CONF_ARM_ON_ENTITIES: [],
+    CONF_NOTIFY_UNAVAILABLE: True,
+    CONF_UNAVAILABLE_DELAY: 60,
     CONF_DOCK_GRACE: 120,
     CONF_NOTIFY_SUPPRESSED: True,
     CONF_ANNOUNCE_ENTITIES: [],
     CONF_SPEAK_SERVICES: [],
     CONF_SOUND_DEVICES: [],
     CONF_SOUND: "amzn_sfx_scifi_alarm_04",
+    CONF_SIRENS: [],
     CONF_VOLUME_PLAYERS: [],
     CONF_ALARM_VOLUME: 0.51,
     CONF_RESET_VOLUME: 0.2,
@@ -140,7 +149,7 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_CALL_TARGETS: [],
     CONF_CALL_ACK: True,
     CONF_CALL_WAIT: 50,
-    CONF_CALL_LANGUAGE: "de",
+    CONF_CALL_LANGUAGE: "auto",
     CONF_CALL_COOLDOWN: 180,
     CONF_PRESENCE_MODE: "wifi",
     CONF_WIFI_SENSORS: [],
@@ -150,6 +159,7 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_PREWARN: 5,
     CONF_RETRY: 2,
     CONF_PRESENCE_STABLE: 2,
+    CONF_UNKNOWN_PRESENCE: "home",
     CONF_DISARM_ON_UNLOCK: True,
     CONF_LOCK_ON_ARM: True,
     CONF_KIDS_RESET_AFTER: 10,
@@ -158,6 +168,7 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_NIGHT_OFF_DAYS: ["mon", "tue", "wed", "thu", "fri"],
     CONF_NIGHT_TURN_ON: [],
     CONF_NIGHT_SOUND_DEVICES: [],
+    CONF_NIGHT_SIRENS: [],
     CONF_NIGHT_VOLUME_PLAYERS: [],
     CONF_NIGHT_SPEAK: [],
     CONF_NIGHT_OFF_SPEAK: [],
@@ -168,6 +179,12 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_HINT_DURATION: 30,
 }
 
+
+def without_defaults(options: dict[str, object]) -> dict[str, object]:
+    """Options that differ from the defaults (later default changes reach every installation)."""
+    return {k: v for k, v in options.items() if k not in DEFAULTS or DEFAULTS[k] != v}
+
+
 # Options without a default (entities or texts that may be empty).
 OPTIONAL_TEXT_KEYS: Final = (
     CONF_VACUUM,
@@ -175,6 +192,7 @@ OPTIONAL_TEXT_KEYS: Final = (
     CONF_FAULT_SENSOR,
     CONF_TEXT_TRIGGERED,
     CONF_TEXT_PENDING,
+    CONF_SOUND_MEDIA,
     CONF_CALL_ADDON,
     CONF_CALL_TTS,
     CONF_LOCK,
@@ -233,6 +251,7 @@ CONF_GARAGE_MOTION = "garage_motion"
 CONF_GARAGE_TTS = "garage_tts_services"
 CONF_GARAGE_TTS_TEXT = "garage_tts_text"
 CONF_GARAGE_TTS_REPEAT = "garage_tts_repeat"
+CONF_GARAGE_TTS_STREAM = "garage_tts_stream"
 
 GARAGE_DEFAULTS: Final[dict[str, object]] = {
     CONF_GARAGE_NETWORKS: [],
@@ -240,4 +259,31 @@ GARAGE_DEFAULTS: Final[dict[str, object]] = {
     CONF_GARAGE_MOTION: [],
     CONF_GARAGE_TTS: [],
     CONF_GARAGE_TTS_REPEAT: 2,
+    CONF_GARAGE_TTS_STREAM: "alarm_stream_max",
+}
+
+# ---------- number ranges: (min, max, step, unit), used by the flows and the panel API
+RANGES: Final[dict[str, tuple[float, float, float, str | None]]] = {
+    CONF_ENTRY_DELAY: (0, 600, 1, "s"),
+    CONF_EXIT_DELAY: (0, 600, 1, "s"),
+    CONF_TRIGGER_TIME: (0, 7200, 1, "s"),
+    CONF_UNAVAILABLE_DELAY: (0, 3600, 1, "s"),
+    CONF_DOCK_GRACE: (0, 1800, 1, "s"),
+    CONF_ALARM_VOLUME: (0, 1, 0.01, None),
+    CONF_RESET_VOLUME: (0, 1, 0.01, None),
+    CONF_RESET_AFTER: (0, 600, 1, "s"),
+    CONF_CALL_WAIT: (0, 600, 1, "s"),
+    CONF_CALL_COOLDOWN: (0, 3600, 1, "s"),
+    CONF_QUIET: (0, 240, 1, "min"),
+    CONF_PREWARN: (0, 60, 1, "min"),
+    CONF_RETRY: (0, 120, 1, "min"),
+    CONF_PRESENCE_STABLE: (0, 60, 1, "min"),
+    CONF_NIGHT_RESET_AFTER: (0, 600, 1, "s"),
+    CONF_NIGHT_OFF_VOLUME: (0, 1, 0.01, None),
+    CONF_KIDS_RESET_AFTER: (0, 240, 1, "min"),
+    CONF_HINT_DURATION: (1, 600, 1, "s"),
+    CONF_ARM_COVER_POSITION: (0, 100, 1, "%"),
+    CONF_PRIVACY_DELAY: (0, 60, 1, "min"),
+    CONF_GARAGE_DELAY: (0, 60, 1, "min"),
+    CONF_GARAGE_TTS_REPEAT: (0, 10, 1, None),
 }

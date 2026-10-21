@@ -15,19 +15,27 @@ from homeassistant.helpers import entity_registry as er
 from .const import (
     CONF_CODE,
     CONF_ENTITY,
+    CONF_GARAGE_NETWORKS,
     CONF_GARAGE_PANEL,
     CONF_PERSON_WIFI,
     CONF_TYPE,
     DEFAULTS,
     DOMAIN,
-    OPTIONAL_TEXT_KEYS,
     SUBENTRY_CAMERA,
     SUBENTRY_GARAGE,
     SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
+    without_defaults,
 )
-from .engine import hash_code
+from .logic.code import hash_code, valid_code
 from .logic.state_machine import SENSOR_TYPES
+from .validation import (
+    FieldError,
+    coerce_option,
+    duplicate_sensor,
+    validate_subentry,
+    wifi_sensors_of,
+)
 
 DATA_WS = f"{DOMAIN}_ws_registered"
 SUBENTRY_TYPES = (SUBENTRY_SENSOR, SUBENTRY_PERSON, SUBENTRY_CAMERA, SUBENTRY_GARAGE)
@@ -72,21 +80,12 @@ def _entry(hass: HomeAssistant) -> ConfigEntry | None:
     return entries[0] if entries else None
 
 
-def _coerce(key: str, value: Any) -> Any:
-    """Bring a value from the panel into the type of the option."""
-    default = DEFAULTS.get(key)
-    if value is None or value == "":
+def _engine(hass: HomeAssistant) -> Any:
+    """Engine of the loaded entry (None: not loaded, e.g. disabled)."""
+    entry = _entry(hass)
+    if entry is None or entry.state is not ConfigEntryState.LOADED:
         return None
-    if isinstance(default, bool):
-        return bool(value)
-    if isinstance(default, int | float):
-        number = float(value)
-        return int(number) if isinstance(default, int) and number.is_integer() else number
-    if isinstance(default, list):
-        if not isinstance(value, list):
-            raise vol.Invalid(f"{key} must be a list")
-        return [str(v).strip() for v in value if str(v).strip()]
-    return str(value).strip()
+    return entry.runtime_data
 
 
 def config_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
@@ -148,8 +147,8 @@ def ws_config(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
     }
 )
 @websocket_api.require_admin
-@callback
-def ws_save_options(
+@websocket_api.async_response
+async def ws_save_options(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
 ) -> None:
     entry = _entry(hass)
@@ -159,23 +158,22 @@ def ws_save_options(
     options = dict(entry.options)
     try:
         for key, value in msg["options"].items():
-            if key not in DEFAULTS and key not in OPTIONAL_TEXT_KEYS:
-                raise vol.Invalid(f"unknown option {key}")
-            coerced = _coerce(key, value)
-            if coerced is None and key not in DEFAULTS:
-                options.pop(key, None)
-            elif coerced is None:
-                options[key] = DEFAULTS[key]
+            coerced = coerce_option(key, value)
+            if coerced is None:
+                options.pop(key, None)  # cleared: the default applies
             else:
                 options[key] = coerced
-    except (vol.Invalid, TypeError, ValueError) as err:
+    except FieldError as err:
         connection.send_error(msg["id"], "invalid", str(err))
         return
     if msg["remove_code"]:
         options.pop(CONF_CODE, None)
     elif code := str(msg.get("code") or "").strip():
-        options[CONF_CODE] = hash_code(code)
-    hass.config_entries.async_update_entry(entry, options=options)
+        if not valid_code(code):
+            connection.send_error(msg["id"], "invalid", "code_invalid")
+            return
+        options[CONF_CODE] = await hass.async_add_executor_job(hash_code, code)
+    hass.config_entries.async_update_entry(entry, options=without_defaults(options))
     connection.send_result(msg["id"], config_payload(hass, entry))
 
 
@@ -193,6 +191,12 @@ def _validate_subentry(subentry_type: str, title: str, data: dict[str, Any]) -> 
         return "entity_required"
     if subentry_type == SUBENTRY_GARAGE and not data.get(CONF_GARAGE_PANEL):
         return "entity_required"
+    return None
+
+
+def _check_garage(entry: ConfigEntry, data: dict[str, Any]) -> str | None:
+    if data.get(CONF_GARAGE_NETWORKS) and not wifi_sensors_of(entry):
+        return f"{CONF_GARAGE_NETWORKS}:wifi_required"
     return None
 
 
@@ -214,7 +218,11 @@ def ws_save_subentry(
     if entry is None:
         connection.send_error(msg["id"], "not_found", "Alarm Assistant is not set up")
         return
-    data = {k: v for k, v in msg["data"].items() if v not in (None, "", [])}
+    try:
+        data = validate_subentry(msg["subentry_type"], msg["data"])
+    except FieldError as err:
+        connection.send_error(msg["id"], "invalid", str(err))
+        return
     title = msg["title"].strip()
     if msg["subentry_type"] == SUBENTRY_SENSOR and not title and data.get(CONF_ENTITY):
         state = hass.states.get(str(data[CONF_ENTITY]))
@@ -222,7 +230,15 @@ def ws_save_subentry(
     if error := _validate_subentry(msg["subentry_type"], title, data):
         connection.send_error(msg["id"], "invalid", error)
         return
+    if msg["subentry_type"] == SUBENTRY_GARAGE and (error := _check_garage(entry, data)):
+        connection.send_error(msg["id"], "invalid", error)
+        return
     sub_id = msg.get("subentry_id")
+    if msg["subentry_type"] == SUBENTRY_SENSOR and duplicate_sensor(
+        entry, data[CONF_ENTITY], sub_id
+    ):
+        connection.send_error(msg["id"], "invalid", f"{CONF_ENTITY}:already_configured")
+        return
     if sub_id:
         subentry = entry.subentries.get(sub_id)
         if subentry is None or subentry.subentry_type != msg["subentry_type"]:
@@ -269,8 +285,7 @@ def ws_delete_subentry(
 @callback
 def ws_test_arm(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
     """Arm as a test alarm with some reactions switched off."""
-    entry = _entry(hass)
-    engine = getattr(entry, "runtime_data", None) if entry else None
+    engine = _engine(hass)
     if engine is None:
         connection.send_error(msg["id"], "not_found", "Alarm Assistant is not set up")
         return
@@ -292,8 +307,7 @@ def ws_test_trigger(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
 ) -> None:
     """Trigger the running test alarm without a sensor."""
-    entry = _entry(hass)
-    engine = getattr(entry, "runtime_data", None) if entry else None
+    engine = _engine(hass)
     if engine is None or not engine.simulate_trigger():
         connection.send_error(msg["id"], "not_test", "not_test")
         return

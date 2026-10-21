@@ -9,7 +9,9 @@ from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
 )
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .engine import AlarmConfigEntry, AlarmEngine, Person
@@ -39,7 +41,13 @@ async def async_setup_entry(
                     "sensors": [s.conf.name for s in e.open_sensors() if s.conf.type != TYPE_MOTION]
                 },
             ),
-            EngineBinarySensor(engine, "motion_suppressed", None, lambda e: e.motion_suppressed()),
+            EngineBinarySensor(
+                engine,
+                "motion_suppressed",
+                None,
+                lambda e: e.motion_suppressed(),
+                category=EntityCategory.DIAGNOSTIC,
+            ),
             *(PresenceSensor(engine, person) for person in engine.persons.values()),
             EngineBinarySensor(
                 engine,
@@ -50,6 +58,12 @@ async def async_setup_entry(
             ),
         ]
     )
+    # presence sensors of deleted persons
+    registry = er.async_get(hass)
+    for reg in er.async_entries_for_config_entry(registry, entry.entry_id):
+        person_id = reg.unique_id.removesuffix("_presence")
+        if reg.unique_id.endswith("_presence") and person_id not in engine.persons:
+            registry.async_remove(reg.entity_id)
 
 
 class EngineBinarySensor(AlarmEntity, BinarySensorEntity):
@@ -62,9 +76,11 @@ class EngineBinarySensor(AlarmEntity, BinarySensorEntity):
         device_class: BinarySensorDeviceClass | None,
         getter: Callable[[AlarmEngine], bool],
         attributes: Callable[[AlarmEngine], dict[str, Any]] | None = None,
+        category: EntityCategory | None = None,
     ) -> None:
         super().__init__(engine, key)
         self._attr_device_class = device_class
+        self._attr_entity_category = category
         self._getter = getter
         self._attributes = attributes
 

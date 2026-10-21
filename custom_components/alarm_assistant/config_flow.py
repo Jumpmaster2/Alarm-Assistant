@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import voluptuous as vol
@@ -9,6 +10,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
+    ConfigSubentryData,
     ConfigSubentryFlow,
     OptionsFlow,
     SubentryFlowResult,
@@ -24,6 +26,7 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -67,6 +70,7 @@ from .const import (
     CONF_GARAGE_PANEL,
     CONF_GARAGE_TTS,
     CONF_GARAGE_TTS_REPEAT,
+    CONF_GARAGE_TTS_STREAM,
     CONF_GARAGE_TTS_TEXT,
     CONF_HINT_DOOR,
     CONF_HINT_DURATION,
@@ -87,6 +91,7 @@ from .const import (
     CONF_NIGHT_OFF_VOLUME,
     CONF_NIGHT_OFF_VOLUME_PLAYERS,
     CONF_NIGHT_RESET_AFTER,
+    CONF_NIGHT_SIRENS,
     CONF_NIGHT_SOUND_DEVICES,
     CONF_NIGHT_SPEAK,
     CONF_NIGHT_TAG,
@@ -97,6 +102,7 @@ from .const import (
     CONF_NOTIFY_ADMIN,
     CONF_NOTIFY_ALARM,
     CONF_NOTIFY_SUPPRESSED,
+    CONF_NOTIFY_UNAVAILABLE,
     CONF_ONLY_UNAVAILABLE,
     CONF_PERSON_COUNT,
     CONF_PERSON_IMAGE,
@@ -116,14 +122,18 @@ from .const import (
     CONF_RESET_AFTER,
     CONF_RESET_VOLUME,
     CONF_RETRY,
+    CONF_SIRENS,
     CONF_SOUND,
     CONF_SOUND_DEVICES,
+    CONF_SOUND_MEDIA,
     CONF_SPEAK_SERVICES,
     CONF_TEXT_PENDING,
     CONF_TEXT_TRIGGERED,
     CONF_TRIGGER_TIME,
     CONF_TURN_ON,
     CONF_TYPE,
+    CONF_UNAVAILABLE_DELAY,
+    CONF_UNKNOWN_PRESENCE,
     CONF_USE_ENTRY,
     CONF_USE_EXIT,
     CONF_VACUUM,
@@ -135,18 +145,29 @@ from .const import (
     GARAGE_DEFAULTS,
     LANGUAGE_OPTIONS,
     NAME,
+    RANGES,
     SENSOR_DEFAULTS,
     SUBENTRY_CAMERA,
     SUBENTRY_GARAGE,
     SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
+    without_defaults,
 )
-from .engine import hash_code
-from .logic.auto_arm import PRESENCE_MODES
+from .logic.auto_arm import MODE_PERSONS, PRESENCE_MODES, UNKNOWN_PRESENCE
+from .logic.code import hash_code, valid_code
 from .logic.misc import WEEKDAYS
-from .logic.state_machine import SENSOR_TYPES, TYPE_WINDOW, type_defaults
+from .logic.state_machine import (
+    SENSOR_TYPES,
+    TYPE_DOOR,
+    TYPE_MOTION,
+    TYPE_OTHER,
+    TYPE_WINDOW,
+    type_defaults,
+)
+from .validation import duplicate_sensor, wifi_sensors_of
 
 CONF_NEW_CODE = "new_code"
+CONF_CODE_CONFIRM = "code_confirm"
 CONF_REMOVE_CODE = "remove_code"
 SECTION_ANNOUNCE = "announce"
 SECTION_SIREN = "siren"
@@ -154,9 +175,25 @@ SECTION_ACTIONS = "actions"
 SECTION_KIDS = "kids"
 SECTION_HINT = "hint"
 SECTION_OFF = "switch_off"
+CALL_LANGUAGES = ["auto", "de", "en"]
+CONF_SENSORS = "sensors"
+# binary sensor device classes offered at the setup and the sensor type they get
+SENSOR_DEVICE_CLASSES = {
+    "door": TYPE_DOOR,
+    "garage_door": TYPE_DOOR,
+    "window": TYPE_WINDOW,
+    "opening": TYPE_OTHER,
+    "motion": TYPE_MOTION,
+    "occupancy": TYPE_MOTION,
+    "presence": TYPE_MOTION,
+}
+# audio streams of the Android companion app for spoken notifications
+TTS_STREAMS = ["alarm_stream_max", "alarm_stream", "music_stream", "notification_stream"]
 
 
-def _number(minimum: float, maximum: float, step: float, unit: str | None = None) -> NumberSelector:
+def _number(key: str) -> NumberSelector:
+    """Number field with the range of the option (const.RANGES)."""
+    minimum, maximum, step, unit = RANGES[key]
     config = NumberSelectorConfig(min=minimum, max=maximum, step=step, mode=NumberSelectorMode.BOX)
     if unit:
         config["unit_of_measurement"] = unit
@@ -233,6 +270,19 @@ def _flatten(user_input: dict[str, Any], sections: tuple[str, ...]) -> dict[str,
     return flat
 
 
+def _password() -> TextSelector:
+    return TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+
+
+def _code_error(code: str, confirm: str) -> str | None:
+    """Error key for a new code (None: valid)."""
+    if not valid_code(code):
+        return "code_invalid"
+    if code != confirm:
+        return "code_mismatch"
+    return None
+
+
 def _schema_keys(schema: vol.Schema) -> set[str]:
     keys: set[str] = set()
     for marker, value in schema.schema.items():
@@ -259,12 +309,14 @@ def _general_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
 
 def _alarm_fields(v: dict[str, Any]) -> dict[Any, Any]:
     return {
-        _req(CONF_ENTRY_DELAY, v): _number(0, 600, 1, "s"),
-        _req(CONF_EXIT_DELAY, v): _number(0, 600, 1, "s"),
-        _req(CONF_TRIGGER_TIME, v): _number(0, 7200, 1, "s"),
+        _req(CONF_ENTRY_DELAY, v): _number(CONF_ENTRY_DELAY),
+        _req(CONF_EXIT_DELAY, v): _number(CONF_EXIT_DELAY),
+        _req(CONF_TRIGGER_TIME, v): _number(CONF_TRIGGER_TIME),
         _req(CONF_DISARM_AFTER_TRIGGER, v): BooleanSelector(),
         _req(CONF_CODE_ARM, v): BooleanSelector(),
         _list(CONF_ARM_ON_ENTITIES, v): _entity(None, True),
+        _req(CONF_NOTIFY_UNAVAILABLE, v): BooleanSelector(),
+        _req(CONF_UNAVAILABLE_DELAY, v): _number(CONF_UNAVAILABLE_DELAY),
     }
 
 
@@ -273,7 +325,7 @@ def _motion_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
         {
             _opt(CONF_VACUUM, v): _entity(["vacuum"]),
             _opt(CONF_VACUUM_CHARGING, v): _entity(["binary_sensor"]),
-            _req(CONF_DOCK_GRACE, v): _number(0, 1800, 1, "s"),
+            _req(CONF_DOCK_GRACE, v): _number(CONF_DOCK_GRACE),
             _opt(CONF_FAULT_SENSOR, v): _entity(["binary_sensor"]),
             _req(CONF_NOTIFY_SUPPRESSED, v): BooleanSelector(),
         }
@@ -297,11 +349,13 @@ def _reactions_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
                 vol.Schema(
                     {
                         _list(CONF_VOLUME_PLAYERS, v): _entity(["media_player"], True),
-                        _req(CONF_ALARM_VOLUME, v): _number(0, 1, 0.01),
-                        _req(CONF_RESET_VOLUME, v): _number(0, 1, 0.01),
-                        _req(CONF_RESET_AFTER, v): _number(0, 600, 1, "s"),
+                        _req(CONF_ALARM_VOLUME, v): _number(CONF_ALARM_VOLUME),
+                        _req(CONF_RESET_VOLUME, v): _number(CONF_RESET_VOLUME),
+                        _req(CONF_RESET_AFTER, v): _number(CONF_RESET_AFTER),
+                        _list(CONF_SIRENS, v): _entity(["siren"], True),
                         _list(CONF_SOUND_DEVICES, v): _alexa_devices(),
                         _req(CONF_SOUND, v): TextSelector(),
+                        _opt(CONF_SOUND_MEDIA, v): TextSelector(),
                         _list(CONF_SPEAK_SERVICES, v): _services(hass),
                     }
                 ),
@@ -320,31 +374,81 @@ def _reactions_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
     )
 
 
-def _call_schema(v: dict[str, Any]) -> vol.Schema:
+def _suggestions(options: list[str] | list[SelectOptionDict], multiple: bool) -> SelectSelector:
+    """Free text with suggestions."""
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=options, multiple=multiple, custom_value=True, mode=SelectSelectorMode.DROPDOWN
+        )
+    )
+
+
+def _sip_addons(hass: HomeAssistant) -> list[str]:
+    """Slugs of installed add-ons that look like ha-sip (empty without Supervisor)."""
+    if "hassio" not in hass.config.components:
+        return []
+    try:
+        from homeassistant.components.hassio import get_addons_info
+
+        addons = get_addons_info(hass) or {}
+    except Exception:
+        return []
+    return sorted(slug for slug in addons if "sip" in slug.lower())
+
+
+def _tags(hass: HomeAssistant) -> list[SelectOptionDict]:
+    """NFC tags known to Home Assistant."""
+    return [
+        SelectOptionDict(value=str(state.attributes["tag_id"]), label=state.name)
+        for state in hass.states.async_all("tag")
+        if state.attributes.get("tag_id")
+    ]
+
+
+def _networks_seen(hass: HomeAssistant, sensors: list[str]) -> list[str]:
+    """Networks the Wi-Fi sensors report right now (suggestions for home networks)."""
+    seen = {
+        state.state
+        for entity_id in sensors
+        if (state := hass.states.get(entity_id)) is not None
+        and state.state not in ("unavailable", "unknown", "<not connected>", "")
+    }
+    return sorted(seen)
+
+
+def _call_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
     return vol.Schema(
         {
-            _opt(CONF_CALL_ADDON, v): TextSelector(),
+            _opt(CONF_CALL_ADDON, v): _suggestions(_sip_addons(hass), False),
             _list(CONF_CALL_TARGETS, v): _free_list(),
             _req(CONF_CALL_ACK, v): BooleanSelector(),
-            _req(CONF_CALL_WAIT, v): _number(0, 600, 1, "s"),
+            _req(CONF_CALL_WAIT, v): _number(CONF_CALL_WAIT),
             _opt(CONF_CALL_TTS, v): _entity(["tts"]),
-            _req(CONF_CALL_LANGUAGE, v): TextSelector(),
-            _req(CONF_CALL_COOLDOWN, v): _number(0, 3600, 1, "s"),
+            _req(CONF_CALL_LANGUAGE, v): SelectSelector(
+                SelectSelectorConfig(
+                    options=CALL_LANGUAGES,
+                    translation_key="call_language",
+                    custom_value=True,
+                    mode=SelectSelectorMode.DROPDOWN,
+                )
+            ),
+            _req(CONF_CALL_COOLDOWN, v): _number(CONF_CALL_COOLDOWN),
         }
     )
 
 
-def _auto_arm_schema(v: dict[str, Any]) -> vol.Schema:
+def _auto_arm_schema(v: dict[str, Any], networks: list[str]) -> vol.Schema:
     return vol.Schema(
         {
             _req(CONF_PRESENCE_MODE, v): _choice(PRESENCE_MODES, "presence_mode"),
             _list(CONF_WIFI_SENSORS, v): _entity(["sensor"], True),
-            _list(CONF_HOME_NETWORKS, v): _free_list(),
+            _list(CONF_HOME_NETWORKS, v): _suggestions(networks, True),
             _list(CONF_PERSONS, v): _entity(["person"], True),
-            _req(CONF_QUIET, v): _number(0, 240, 1, "min"),
-            _req(CONF_PREWARN, v): _number(0, 60, 1, "min"),
-            _req(CONF_RETRY, v): _number(0, 120, 1, "min"),
-            _req(CONF_PRESENCE_STABLE, v): _number(0, 60, 1, "min"),
+            _req(CONF_QUIET, v): _number(CONF_QUIET),
+            _req(CONF_PREWARN, v): _number(CONF_PREWARN),
+            _req(CONF_RETRY, v): _number(CONF_RETRY),
+            _req(CONF_PRESENCE_STABLE, v): _number(CONF_PRESENCE_STABLE),
+            _req(CONF_UNKNOWN_PRESENCE, v): _choice(UNKNOWN_PRESENCE, "unknown_presence"),
         }
     )
 
@@ -364,13 +468,14 @@ def _night_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
     return vol.Schema(
         {
             _opt(CONF_NIGHT_DOOR, v): _entity(["binary_sensor"]),
-            _opt(CONF_NIGHT_TAG, v): TextSelector(),
+            _opt(CONF_NIGHT_TAG, v): _suggestions(_tags(hass), False),
             _list(CONF_NIGHT_TURN_ON, v): _entity(None, True),
             _list(CONF_NIGHT_VOLUME_PLAYERS, v): _entity(["media_player"], True),
+            _list(CONF_NIGHT_SIRENS, v): _entity(["siren"], True),
             _list(CONF_NIGHT_SOUND_DEVICES, v): _alexa_devices(),
             _list(CONF_NIGHT_SPEAK, v): _services(hass),
             _opt(CONF_NIGHT_TEXT, v): TextSelector(),
-            _req(CONF_NIGHT_RESET_AFTER, v): _number(0, 600, 1, "s"),
+            _req(CONF_NIGHT_RESET_AFTER, v): _number(CONF_NIGHT_RESET_AFTER),
             vol.Required(SECTION_OFF): section(
                 vol.Schema(
                     {
@@ -380,10 +485,10 @@ def _night_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
                         ): _choice(WEEKDAYS, "weekday", multiple=True),
                         _list(CONF_NIGHT_OFF_SPEAK, v): _services(hass),
                         _list(CONF_NIGHT_OFF_VOLUME_PLAYERS, v): _entity(["media_player"], True),
-                        _req(CONF_NIGHT_OFF_VOLUME, v): _number(0, 1, 0.01),
+                        _req(CONF_NIGHT_OFF_VOLUME, v): _number(CONF_NIGHT_OFF_VOLUME),
                     }
                 ),
-                {"collapsed": False},
+                {"collapsed": True},
             ),
         }
     )
@@ -395,7 +500,7 @@ def _extras_schema(v: dict[str, Any]) -> vol.Schema:
             vol.Required(SECTION_KIDS): section(
                 vol.Schema(
                     {
-                        _req(CONF_KIDS_RESET_AFTER, v): _number(0, 240, 1, "min"),
+                        _req(CONF_KIDS_RESET_AFTER, v): _number(CONF_KIDS_RESET_AFTER),
                         _req(CONF_KIDS_RESET_TIME, v): TimeSelector(),
                     }
                 ),
@@ -407,10 +512,10 @@ def _extras_schema(v: dict[str, Any]) -> vol.Schema:
                         _opt(CONF_HINT_DOOR, v): _entity(["binary_sensor"]),
                         _list(CONF_HINT_WINDOWS, v): _entity(["binary_sensor"], True),
                         _opt(CONF_HINT_ENTITY, v): _entity(["switch", "light", "input_boolean"]),
-                        _req(CONF_HINT_DURATION, v): _number(1, 600, 1, "s"),
+                        _req(CONF_HINT_DURATION, v): _number(CONF_HINT_DURATION),
                     }
                 ),
-                {"collapsed": False},
+                {"collapsed": True},
             ),
         }
     )
@@ -463,22 +568,68 @@ class AlarmConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_alarm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
         if user_input is not None:
             data = _clean(user_input)
             code = str(data.pop(CONF_CODE, "") or "").strip()
-            options = {**DEFAULTS, **self._options, **data}
-            if code:
-                options[CONF_CODE] = hash_code(code)
-            return self.async_create_entry(title=NAME, data={}, options=options)
+            confirm = str(data.pop(CONF_CODE_CONFIRM, "") or "").strip()
+            if code and (error := _code_error(code, confirm)):
+                errors[CONF_CODE] = error
+            else:
+                self._options.update(data)
+                if code:
+                    self._options[CONF_CODE] = await self.hass.async_add_executor_job(
+                        hash_code, code
+                    )
+                return await self.async_step_sensors()
+        values = {**DEFAULTS, **_clean(user_input or {})}
         schema = vol.Schema(
             {
-                **_alarm_fields({}),
-                vol.Optional(CONF_CODE): TextSelector(
-                    TextSelectorConfig(type=TextSelectorType.PASSWORD)
-                ),
+                **_alarm_fields(values),
+                vol.Optional(CONF_CODE): _password(),
+                vol.Optional(CONF_CODE_CONFIRM): _password(),
             }
         )
-        return self.async_show_form(step_id="alarm", data_schema=schema)
+        return self.async_show_form(step_id="alarm", data_schema=schema, errors=errors)
+
+    async def async_step_sensors(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Optional: take over existing contacts and motion sensors as sensor sub items."""
+        if user_input is not None:
+            subentries = [
+                ConfigSubentryData(
+                    data={CONF_ENTITY: entity_id, CONF_TYPE: self._sensor_type(entity_id)},
+                    subentry_type=SUBENTRY_SENSOR,
+                    title=self._entity_name(entity_id),
+                    unique_id=None,
+                )
+                for entity_id in dict.fromkeys(user_input.get(CONF_SENSORS) or [])
+            ]
+            return self.async_create_entry(
+                title=NAME, data={}, options=without_defaults(self._options), subentries=subentries
+            )
+        schema = vol.Schema(
+            {
+                vol.Optional(CONF_SENSORS, default=[]): EntitySelector(
+                    EntitySelectorConfig(
+                        domain="binary_sensor",
+                        device_class=list(SENSOR_DEVICE_CLASSES),
+                        multiple=True,
+                    )
+                )
+            }
+        )
+        return self.async_show_form(step_id="sensors", data_schema=schema)
+
+    def _entity_name(self, entity_id: str) -> str:
+        state = self.hass.states.get(entity_id)
+        return state.name if state else entity_id
+
+    def _sensor_type(self, entity_id: str) -> str:
+        state = self.hass.states.get(entity_id)
+        device_class = state.attributes.get("device_class") if state else None
+        return SENSOR_DEVICE_CLASSES.get(str(device_class), TYPE_OTHER)
 
 
 # ---------------------------------------------------------------- options flow
@@ -497,26 +648,36 @@ class AlarmOptionsFlow(OptionsFlow):
         for key in _schema_keys(schema):
             options.pop(key, None)
         options.update(_clean(_flatten(user_input, SECTIONS)))
-        return self.async_create_entry(data=options)
+        return self.async_create_entry(data=without_defaults(options))
 
     async def _form(
-        self, step_id: str, schema: vol.Schema, user_input: dict[str, Any] | None
+        self,
+        step_id: str,
+        schema: Callable[[dict[str, Any]], vol.Schema],
+        user_input: dict[str, Any] | None,
+        check: Callable[[dict[str, Any]], dict[str, str]] | None = None,
     ) -> ConfigFlowResult:
+        """Show the form, check the input and save it (shown again with errors)."""
+        errors: dict[str, str] = {}
+        values = self._values
         if user_input is not None:
-            return self._save(schema, user_input)
-        return self.async_show_form(step_id=step_id, data_schema=schema)
+            flat = _clean(_flatten(user_input, SECTIONS))
+            if not (errors := check(flat) if check else {}):
+                return self._save(schema(values), user_input)
+            values = {**DEFAULTS, **flat}
+        return self.async_show_form(step_id=step_id, data_schema=schema(values), errors=errors)
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return self.async_show_menu(
             step_id="init",
             menu_options=[
-                "general",
                 "alarm",
-                "motion",
+                "general",
                 "reactions",
-                "call",
                 "auto_arm",
                 "lock",
+                "call",
+                "motion",
                 "night_door",
                 "extras",
             ],
@@ -525,64 +686,106 @@ class AlarmOptionsFlow(OptionsFlow):
     async def async_step_general(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        return await self._form("general", _general_schema(self.hass, self._values), user_input)
+        return await self._form("general", lambda v: _general_schema(self.hass, v), user_input)
 
     async def async_step_alarm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        fields = _alarm_fields(self._values)
-        schema = vol.Schema(
-            {
-                **fields,
-                vol.Optional(CONF_NEW_CODE): TextSelector(
-                    TextSelectorConfig(type=TextSelectorType.PASSWORD)
-                ),
-                vol.Optional(CONF_REMOVE_CODE, default=False): BooleanSelector(),
-            }
-        )
+        errors: dict[str, str] = {}
         if user_input is not None:
             data = dict(user_input)
             new_code = str(data.pop(CONF_NEW_CODE, "") or "").strip()
+            confirm = str(data.pop(CONF_CODE_CONFIRM, "") or "").strip()
             remove = bool(data.pop(CONF_REMOVE_CODE, False))
-            options = {**self.config_entry.options}
-            for key in _schema_keys(vol.Schema(fields)):
-                options.pop(key, None)
-            options.update(_clean(data))
-            if remove:
-                options.pop(CONF_CODE, None)
-            elif new_code:
-                options[CONF_CODE] = hash_code(new_code)
-            return self.async_create_entry(data=options)
+            if new_code and not remove and (error := _code_error(new_code, confirm)):
+                errors[CONF_NEW_CODE] = error
+            else:
+                options = {**self.config_entry.options}
+                for key in _schema_keys(vol.Schema(_alarm_fields({}))):
+                    options.pop(key, None)
+                options.update(_clean(data))
+                if remove:
+                    options.pop(CONF_CODE, None)
+                elif new_code:
+                    options[CONF_CODE] = await self.hass.async_add_executor_job(hash_code, new_code)
+                return self.async_create_entry(data=without_defaults(options))
+        values = {**self._values, **_clean(user_input or {})}
+        schema = vol.Schema(
+            {
+                **_alarm_fields(values),
+                vol.Optional(CONF_NEW_CODE): _password(),
+                vol.Optional(CONF_CODE_CONFIRM): _password(),
+                vol.Optional(CONF_REMOVE_CODE, default=False): BooleanSelector(),
+            }
+        )
         return self.async_show_form(
             step_id="alarm",
             data_schema=schema,
+            errors=errors,
             description_placeholders={"code": "✔" if self._values.get(CONF_CODE) else "–"},
         )
 
     async def async_step_motion(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return await self._form("motion", _motion_schema(self.hass, self._values), user_input)
+        return await self._form("motion", lambda v: _motion_schema(self.hass, v), user_input)
 
     async def async_step_reactions(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        return await self._form("reactions", _reactions_schema(self.hass, self._values), user_input)
+        return await self._form("reactions", lambda v: _reactions_schema(self.hass, v), user_input)
 
     async def async_step_call(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return await self._form("call", _call_schema(self._values), user_input)
+        return await self._form(
+            "call", lambda v: _call_schema(self.hass, v), user_input, self._check_call
+        )
 
     async def async_step_auto_arm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        return await self._form("auto_arm", _auto_arm_schema(self._values), user_input)
+        networks = _networks_seen(self.hass, wifi_sensors_of(self.config_entry))
+        return await self._form(
+            "auto_arm", lambda v: _auto_arm_schema(v, networks), user_input, self._check_auto_arm
+        )
 
     async def async_step_lock(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return await self._form("lock", _lock_schema(self._values), user_input)
+        return await self._form("lock", _lock_schema, user_input, _check_lock)
 
     async def async_step_night_door(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        return await self._form("night_door", _night_schema(self.hass, self._values), user_input)
+        return await self._form("night_door", lambda v: _night_schema(self.hass, v), user_input)
 
     async def async_step_extras(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return await self._form("extras", _extras_schema(self._values), user_input)
+        return await self._form("extras", _extras_schema, user_input, _check_extras)
+
+    def _check_call(self, v: dict[str, Any]) -> dict[str, str]:
+        errors: dict[str, str] = {}
+        if v.get(CONF_CALL_ADDON) and not v.get(CONF_CALL_TARGETS):
+            errors[CONF_CALL_TARGETS] = "targets_required"
+        elif v.get(CONF_CALL_TARGETS) and not v.get(CONF_CALL_ADDON):
+            errors[CONF_CALL_ADDON] = "addon_required"
+        elif v.get(CONF_CALL_ADDON) and not self.hass.services.has_service("hassio", "addon_stdin"):
+            errors[CONF_CALL_ADDON] = "supervisor_required"
+        return errors
+
+    def _check_auto_arm(self, v: dict[str, Any]) -> dict[str, str]:
+        if v.get(CONF_PRESENCE_MODE) == MODE_PERSONS:
+            return {} if v.get(CONF_PERSONS) else {CONF_PERSONS: "persons_required"}
+        has_phones = bool(v.get(CONF_WIFI_SENSORS)) or any(
+            sub.subentry_type == SUBENTRY_PERSON for sub in self.config_entry.subentries.values()
+        )
+        if has_phones and not v.get(CONF_HOME_NETWORKS):
+            return {CONF_HOME_NETWORKS: "home_networks_required"}
+        return {}
+
+
+def _check_lock(v: dict[str, Any]) -> dict[str, str]:
+    if v.get(CONF_LOCK_DOOR) and not v.get(CONF_LOCK):
+        return {CONF_LOCK: "lock_required"}
+    return {}
+
+
+def _check_extras(v: dict[str, Any]) -> dict[str, str]:
+    if v.get(CONF_HINT_DOOR) and not (v.get(CONF_HINT_ENTITY) and v.get(CONF_HINT_WINDOWS)):
+        return {"base": "hint_incomplete"}
+    return {}
 
 
 # ---------------------------------------------------------------- sensor subentry
@@ -609,7 +812,15 @@ class SensorSubentryFlow(ConfigSubentryFlow):
     async def async_step_basics(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
+        errors: dict[str, str] = {}
+        placeholders = {"other": ""}
         if user_input is not None:
+            own_id = self._get_reconfigure_subentry().subentry_id if self._reconfigure else None
+            other = duplicate_sensor(self._get_entry(), str(user_input[CONF_ENTITY]), own_id)
+            if other is not None:
+                errors[CONF_ENTITY] = "already_configured"
+                placeholders["other"] = other
+        if user_input is not None and not errors:
             if user_input.get(CONF_TYPE) != self._values.get(CONF_TYPE):
                 # new type: start with its defaults
                 for key in (CONF_USE_ENTRY, CONF_USE_EXIT, CONF_AUTO_BYPASS, CONF_ALLOW_OPEN):
@@ -621,18 +832,24 @@ class SensorSubentryFlow(ConfigSubentryFlow):
                 name = state.name if state else str(user_input[CONF_ENTITY])
             self._values[CONF_NAME] = name
             return await self.async_step_behavior()
+        values = {**self._values, **(user_input or {})}
         schema = vol.Schema(
             {
-                _opt(CONF_NAME, self._values): TextSelector(),
-                vol.Required(CONF_ENTITY, default=self._values.get(CONF_ENTITY)): _entity(
+                _opt(CONF_NAME, values): TextSelector(),
+                vol.Required(CONF_ENTITY, default=values.get(CONF_ENTITY)): _entity(
                     ["binary_sensor", "input_boolean"]
                 ),
-                vol.Required(CONF_TYPE, default=self._values.get(CONF_TYPE, TYPE_WINDOW)): _choice(
+                vol.Required(CONF_TYPE, default=values.get(CONF_TYPE, TYPE_WINDOW)): _choice(
                     SENSOR_TYPES, "sensor_type"
                 ),
             }
         )
-        return self.async_show_form(step_id="basics", data_schema=schema)
+        return self.async_show_form(
+            step_id="basics",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders=placeholders,
+        )
 
     async def async_step_behavior(
         self, user_input: dict[str, Any] | None = None
@@ -667,7 +884,7 @@ class SensorSubentryFlow(ConfigSubentryFlow):
             {
                 _opt(CONF_ONLY_UNAVAILABLE, v): _entity(),
                 _opt(CONF_ARM_COVER, v): _entity(["cover"]),
-                _req(CONF_ARM_COVER_POSITION, v, SENSOR_DEFAULTS): _number(0, 100, 1, "%"),
+                _req(CONF_ARM_COVER_POSITION, v, SENSOR_DEFAULTS): _number(CONF_ARM_COVER_POSITION),
                 _opt(CONF_CAMERA_PRESET, v): TextSelector(),
             }
         )
@@ -688,7 +905,7 @@ def _camera_schema(v: dict[str, Any]) -> vol.Schema:
             _opt(CONF_PRIVACY, v): _entity(["switch"]),
             _opt(CONF_PTZ, v): _entity(["select"]),
             _opt(CONF_PTZ_HOME, v): TextSelector(),
-            _req(CONF_PRIVACY_DELAY, v, CAMERA_DEFAULTS): _number(0, 60, 1, "min"),
+            _req(CONF_PRIVACY_DELAY, v, CAMERA_DEFAULTS): _number(CONF_PRIVACY_DELAY),
             _list(CONF_RECORD_SWITCHES, v): _entity(["switch"], True),
             _list(CONF_DETECT_SWITCHES, v): _entity(["switch"], True),
             _opt(CONF_PERSON_SENSOR, v): _entity(["binary_sensor"]),
@@ -707,11 +924,18 @@ def _garage_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
                 ["alarm_control_panel"]
             ),
             _list(CONF_GARAGE_NETWORKS, v): _free_list(),
-            _req(CONF_GARAGE_DELAY, v, GARAGE_DEFAULTS): _number(0, 60, 1, "min"),
+            _req(CONF_GARAGE_DELAY, v, GARAGE_DEFAULTS): _number(CONF_GARAGE_DELAY),
             _list(CONF_GARAGE_MOTION, v): _entity(["binary_sensor"], True),
             _list(CONF_GARAGE_TTS, v): _services(hass),
             _opt(CONF_GARAGE_TTS_TEXT, v): TextSelector(),
-            _req(CONF_GARAGE_TTS_REPEAT, v, GARAGE_DEFAULTS): _number(0, 10, 1),
+            _req(CONF_GARAGE_TTS_REPEAT, v, GARAGE_DEFAULTS): _number(CONF_GARAGE_TTS_REPEAT),
+            _req(CONF_GARAGE_TTS_STREAM, v, GARAGE_DEFAULTS): SelectSelector(
+                SelectSelectorConfig(
+                    options=TTS_STREAMS,
+                    custom_value=True,
+                    mode=SelectSelectorMode.DROPDOWN,
+                )
+            ),
         }
     )
 
@@ -727,13 +951,16 @@ class _SimpleSubentryFlow(ConfigSubentryFlow):
         title = str(data.pop(CONF_NAME, "")).strip()
         return title, data
 
+    def _errors(self, title: str, data: dict[str, Any]) -> dict[str, str]:
+        """Field errors of the form (empty: valid)."""
+        return {} if title else {CONF_NAME: "name_required"}
+
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
             title, data = self._result(user_input)
-            if title:
+            if not (errors := self._errors(title, data)):
                 return self.async_create_entry(title=title, data=data)
-            errors[CONF_NAME] = "name_required"
         return self.async_show_form(
             step_id="user", data_schema=self._schema(user_input or {}), errors=errors
         )
@@ -746,11 +973,10 @@ class _SimpleSubentryFlow(ConfigSubentryFlow):
         values = {CONF_NAME: subentry.title, **subentry.data}
         if user_input is not None:
             title, data = self._result(user_input)
-            if title:
+            if not (errors := self._errors(title, data)):
                 return self.async_update_and_abort(
                     self._get_entry(), subentry, title=title, data=data
                 )
-            errors[CONF_NAME] = "name_required"
             values = user_input
         return self.async_show_form(
             step_id="reconfigure", data_schema=self._schema(values), errors=errors
@@ -769,6 +995,13 @@ class GarageSubentryFlow(_SimpleSubentryFlow):
 
     def _schema(self, values: dict[str, Any]) -> vol.Schema:
         return _garage_schema(self.hass, values)
+
+    def _errors(self, title: str, data: dict[str, Any]) -> dict[str, str]:
+        errors = super()._errors(title, data)
+        if data.get(CONF_GARAGE_NETWORKS) and not wifi_sensors_of(self._get_entry()):
+            # the garage is switched by the Wi-Fi of the phones
+            errors[CONF_GARAGE_NETWORKS] = "wifi_required"
+        return errors
 
 
 class PersonSubentryFlow(_SimpleSubentryFlow):

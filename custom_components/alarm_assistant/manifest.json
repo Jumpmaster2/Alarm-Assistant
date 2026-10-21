@@ -1,7 +1,7 @@
 {
   "domain": "alarm_assistant",
   "name": "Alarm Assistant",
-  "after_dependencies": ["frontend", "http", "panel_custom", "websocket_api"],
+  "after_dependencies": ["frontend", "hassio", "http", "panel_custom", "websocket_api"],
   "codeowners": ["@Jumpmaster2"],
   "config_flow": true,
   "documentation": "https://github.com/Jumpmaster2/Alarm-Assistant",
@@ -10,5 +10,5 @@
   "issue_tracker": "https://github.com/Jumpmaster2/Alarm-Assistant/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.4.5"
+  "version": "0.6.1"
 }

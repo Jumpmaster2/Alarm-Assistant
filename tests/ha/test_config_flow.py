@@ -13,7 +13,7 @@ from custom_components.alarm_assistant.const import (
     SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
 )
-from custom_components.alarm_assistant.engine import hash_code
+from custom_components.alarm_assistant.logic.code import verify_code
 
 from .conftest import AIRCON, BALCONY, DOOR, LOCK, make_entry, setup_entry
 
@@ -39,14 +39,27 @@ async def test_user_flow(hass: HomeAssistant, base_states) -> None:
     result = await hass.config_entries.flow.async_configure(result["flow_id"], GENERAL)
     assert result["step_id"] == "alarm"
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {**ALARM, "code": "4711"}
+        result["flow_id"], {**ALARM, "code": "4711", "code_confirm": "4712"}
     )
+    assert result["errors"] == {"code": "code_mismatch"}
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**ALARM, "code": "47a1", "code_confirm": "47a1"}
+    )
+    assert result["errors"] == {"code": "code_invalid"}
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**ALARM, "code": "4711", "code_confirm": "4711"}
+    )
+    assert result["step_id"] == "sensors"
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"sensors": []})
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
     entry = result["result"]
     assert entry.options["notify_services"] == ["notify.phone"]
-    assert entry.options["code"] == hash_code("4711")
-    assert entry.options["entry_delay"] == 30
+    assert entry.options["code"].startswith("pbkdf2_sha256$")
+    assert verify_code("4711", entry.options["code"])
+    # only values that differ from the defaults are stored
+    assert "entry_delay" not in entry.options
+    assert entry.runtime_data.opt("entry_delay") == 30
     assert "next_flow" not in result
 
 
@@ -66,11 +79,19 @@ async def _options(hass: HomeAssistant, entry, step: str, data: dict) -> dict:
 async def test_options_code(hass: HomeAssistant, base_states) -> None:
     entry = make_entry()
     await setup_entry(hass, entry)
-    await _options(hass, entry, "alarm", {**ALARM, "new_code": "1234"})
-    assert entry.options["code"] == hash_code("1234")
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "alarm"}
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {**ALARM, "new_code": "12", "code_confirm": "12"}
+    )
+    assert result["errors"] == {"new_code": "code_invalid"}
+    await _options(hass, entry, "alarm", {**ALARM, "new_code": "1234", "code_confirm": "1234"})
+    assert verify_code("1234", entry.options["code"])
     # empty keeps the code
     await _options(hass, entry, "alarm", {**ALARM, "entry_delay": 45})
-    assert entry.options["code"] == hash_code("1234")
+    assert verify_code("1234", entry.options["code"])
     assert entry.options["entry_delay"] == 45
     await _options(hass, entry, "alarm", {**ALARM, "remove_code": True})
     assert "code" not in entry.options
@@ -185,8 +206,29 @@ async def test_sensor_subentry(hass: HomeAssistant, base_states) -> None:
     assert "only_when_unavailable" not in sub.data
 
 
-async def test_camera_and_garage_subentries(hass: HomeAssistant, base_states) -> None:
+async def test_garage_needs_wifi_sensors(hass: HomeAssistant, base_states) -> None:
     entry = make_entry()
+    await setup_entry(hass, entry)
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_GARAGE), context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"],
+        {
+            "name": "Garage",
+            "garage_panel": "alarm_control_panel.garage",
+            "garage_networks": ["GarageNet"],
+            "garage_arm_delay": 2,
+            "garage_motion": [],
+            "garage_tts_services": [],
+            "garage_tts_repeat": 2,
+        },
+    )
+    assert result["errors"] == {"garage_networks": "wifi_required"}
+
+
+async def test_camera_and_garage_subentries(hass: HomeAssistant, base_states) -> None:
+    entry = make_entry(wifi_sensors=["sensor.phone_a_wifi"])
     await setup_entry(hass, entry)
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, SUBENTRY_CAMERA), context={"source": SOURCE_USER}
@@ -239,7 +281,7 @@ async def test_camera_and_garage_subentries(hass: HomeAssistant, base_states) ->
     )
     assert result["step_id"] == "reconfigure"
     await hass.async_block_till_done()
-    assert hass.states.get("switch.alarm_assistant_garage_automatic") is not None
+    assert hass.states.get("switch.alarm_assistant_garage_automation") is not None
     assert hass.states.get("switch.alarm_assistant_camera_live_view") is not None
 
 
@@ -255,3 +297,98 @@ async def test_person_subentry(hass: HomeAssistant, base_states) -> None:
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     assert hass.states.get("binary_sensor.alarm_assistant_alex_at_home") is not None
+
+
+async def test_sensor_subentry_rejects_duplicate(hass: HomeAssistant, base_states) -> None:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_SENSOR), context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"entity": DOOR, "type": "door"}
+    )
+    assert result["errors"] == {"entity": "already_configured"}
+    assert result["description_placeholders"]["other"] == "Front door"
+    # changing the sensor itself keeps its entity
+    sub_id = next(i for i, s in entry.subentries.items() if s.data["entity"] == DOOR)
+    result = await entry.start_subentry_reconfigure_flow(hass, sub_id)
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"name": "Door", "entity": DOOR, "type": "door"}
+    )
+    assert result["step_id"] == "behavior"
+
+
+async def _options_errors(hass: HomeAssistant, entry, step: str, data: dict) -> dict:
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": step}
+    )
+    result = await hass.config_entries.options.async_configure(result["flow_id"], data)
+    assert result["type"] is FlowResultType.FORM
+    return result["errors"]
+
+
+CALL = {"call_acknowledge": True, "call_wait": 50, "call_language": "auto", "call_cooldown": 180}
+AUTO = {"quiet_time": 10, "prewarn_time": 5, "retry_after_disarm": 2, "presence_stable": 2}
+
+
+async def test_options_dependencies(hass: HomeAssistant, base_states, calls) -> None:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    errors = await _options_errors(
+        hass, entry, "call", {**CALL, "call_addon": "abcd_ha-sip", "call_targets": []}
+    )
+    assert errors == {"call_targets": "targets_required"}
+    errors = await _options_errors(hass, entry, "call", {**CALL, "call_targets": ["sip:1@x"]})
+    assert errors == {"call_addon": "addon_required"}
+    errors = await _options_errors(
+        hass,
+        entry,
+        "auto_arm",
+        {**AUTO, "presence_mode": "wifi", "wifi_sensors": ["sensor.phone_a_wifi"]},
+    )
+    assert errors == {"home_networks": "home_networks_required"}
+    errors = await _options_errors(hass, entry, "auto_arm", {**AUTO, "presence_mode": "persons"})
+    assert errors == {"persons": "persons_required"}
+    errors = await _options_errors(
+        hass,
+        entry,
+        "lock",
+        {"lock_door_sensor": DOOR, "disarm_on_unlock": True, "lock_on_arm": True},
+    )
+    assert errors == {"lock": "lock_required"}
+    # valid input is saved
+    await _options(
+        hass, entry, "call", {**CALL, "call_addon": "abcd_ha-sip", "call_targets": ["sip:1@x"]}
+    )
+    assert entry.options["call_targets"] == ["sip:1@x"]
+
+
+async def test_call_needs_supervisor(hass: HomeAssistant, base_states) -> None:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    errors = await _options_errors(
+        hass, entry, "call", {**CALL, "call_addon": "abcd_ha-sip", "call_targets": ["sip:1@x"]}
+    )
+    assert errors == {"call_addon": "supervisor_required"}
+
+
+async def test_user_flow_takes_over_sensors(hass: HomeAssistant, base_states) -> None:
+    hass.states.async_set(DOOR, "off", {"device_class": "door", "friendly_name": "Front door"})
+    hass.states.async_set(BALCONY, "off", {"device_class": "window"})
+    hass.states.async_set("binary_sensor.hall", "off", {"device_class": "motion"})
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], GENERAL)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], ALARM)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"sensors": [DOOR, BALCONY, "binary_sensor.hall"]}
+    )
+    await hass.async_block_till_done()
+    entry = result["result"]
+    subs = {s.data["entity"]: s for s in entry.subentries.values()}
+    assert subs[DOOR].data["type"] == "door"
+    assert subs[DOOR].title == "Front door"
+    assert subs[BALCONY].data["type"] == "window"
+    assert subs["binary_sensor.hall"].data["type"] == "motion"
+    assert hass.states.get("alarm_control_panel.alarm_assistant") is not None
