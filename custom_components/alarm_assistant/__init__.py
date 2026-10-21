@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN, PLATFORMS, STORAGE_VERSION
@@ -46,4 +47,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: AlarmConfigEntry) -> bo
 async def async_remove_entry(hass: HomeAssistant, entry: AlarmConfigEntry) -> None:
     """Delete the stored state when the integration is removed."""
     async_unregister_panel(hass)
+    ir.async_delete_issue(hass, DOMAIN, "missing_entities")
     await Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}").async_remove()

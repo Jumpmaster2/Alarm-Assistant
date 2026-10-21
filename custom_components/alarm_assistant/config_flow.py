@@ -151,6 +151,7 @@ from .const import (
     SUBENTRY_GARAGE,
     SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
+    without_defaults,
 )
 from .logic.auto_arm import MODE_PERSONS, PRESENCE_MODES, UNKNOWN_PRESENCE
 from .logic.code import hash_code, valid_code
@@ -606,7 +607,7 @@ class AlarmConfigFlow(ConfigFlow, domain=DOMAIN):
                 for entity_id in dict.fromkeys(user_input.get(CONF_SENSORS) or [])
             ]
             return self.async_create_entry(
-                title=NAME, data={}, options={**DEFAULTS, **self._options}, subentries=subentries
+                title=NAME, data={}, options=without_defaults(self._options), subentries=subentries
             )
         schema = vol.Schema(
             {
@@ -647,7 +648,7 @@ class AlarmOptionsFlow(OptionsFlow):
         for key in _schema_keys(schema):
             options.pop(key, None)
         options.update(_clean(_flatten(user_input, SECTIONS)))
-        return self.async_create_entry(data=options)
+        return self.async_create_entry(data=without_defaults(options))
 
     async def _form(
         self,
@@ -705,7 +706,7 @@ class AlarmOptionsFlow(OptionsFlow):
                     options.pop(CONF_CODE, None)
                 elif new_code:
                     options[CONF_CODE] = await self.hass.async_add_executor_job(hash_code, new_code)
-                return self.async_create_entry(data=options)
+                return self.async_create_entry(data=without_defaults(options))
         values = {**self._values, **_clean(user_input or {})}
         schema = vol.Schema(
             {

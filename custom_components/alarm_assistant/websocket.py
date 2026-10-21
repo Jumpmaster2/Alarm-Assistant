@@ -25,6 +25,7 @@ from .const import (
     SUBENTRY_GARAGE,
     SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
+    without_defaults,
 )
 from .logic.code import hash_code, valid_code
 from .logic.state_machine import SENSOR_TYPES
@@ -77,6 +78,14 @@ def _entry(hass: HomeAssistant) -> ConfigEntry | None:
             return entry
     entries = hass.config_entries.async_entries(DOMAIN)
     return entries[0] if entries else None
+
+
+def _engine(hass: HomeAssistant) -> Any:
+    """Engine of the loaded entry (None: not loaded, e.g. disabled)."""
+    entry = _entry(hass)
+    if entry is None or entry.state is not ConfigEntryState.LOADED:
+        return None
+    return entry.runtime_data
 
 
 def config_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
@@ -150,10 +159,8 @@ async def ws_save_options(
     try:
         for key, value in msg["options"].items():
             coerced = coerce_option(key, value)
-            if coerced is None and key not in DEFAULTS:
-                options.pop(key, None)
-            elif coerced is None:
-                options[key] = DEFAULTS[key]
+            if coerced is None:
+                options.pop(key, None)  # cleared: the default applies
             else:
                 options[key] = coerced
     except FieldError as err:
@@ -166,7 +173,7 @@ async def ws_save_options(
             connection.send_error(msg["id"], "invalid", "code_invalid")
             return
         options[CONF_CODE] = await hass.async_add_executor_job(hash_code, code)
-    hass.config_entries.async_update_entry(entry, options=options)
+    hass.config_entries.async_update_entry(entry, options=without_defaults(options))
     connection.send_result(msg["id"], config_payload(hass, entry))
 
 
@@ -278,8 +285,7 @@ def ws_delete_subentry(
 @callback
 def ws_test_arm(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
     """Arm as a test alarm with some reactions switched off."""
-    entry = _entry(hass)
-    engine = getattr(entry, "runtime_data", None) if entry else None
+    engine = _engine(hass)
     if engine is None:
         connection.send_error(msg["id"], "not_found", "Alarm Assistant is not set up")
         return
@@ -301,8 +307,7 @@ def ws_test_trigger(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
 ) -> None:
     """Trigger the running test alarm without a sensor."""
-    entry = _entry(hass)
-    engine = getattr(entry, "runtime_data", None) if entry else None
+    engine = _engine(hass)
     if engine is None or not engine.simulate_trigger():
         connection.send_error(msg["id"], "not_test", "not_test")
         return

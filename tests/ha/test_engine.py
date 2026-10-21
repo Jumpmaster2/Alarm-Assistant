@@ -883,3 +883,15 @@ async def test_only_configured_entities(
     await hass.async_block_till_done()
     assert registry.async_get(AUTO) is None
     assert registry.async_get("binary_sensor.alarm_assistant_alex_at_home") is None
+
+
+async def test_remove_entry_deletes_issue(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(START)
+    entry = make_entry(turn_on_entities=["light.does_not_exist"])
+    await setup_entry(hass, entry)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, "missing_entities") is not None
+    await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, "missing_entities") is None

@@ -702,7 +702,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     def _notify(self, targets: Iterable[str], title: str, message: str, **kw: Any) -> None:
         targets = list(targets)
         if targets:
-            self.hass.async_create_task(self._async_notify(targets, title, message, **kw))
+            self.config_entry.async_create_task(
+                self.hass, self._async_notify(targets, title, message, **kw)
+            )
 
     async def _async_announce(self, message: str, title: str) -> None:
         for entity_id in self._filter("announce", self.opt_list(CONF_ANNOUNCE_ENTITIES)):
@@ -1034,8 +1036,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         self.lock_retried = False
         self._lock_door()
         for entity_id in self._filter("armed_on", self.opt_list(CONF_ARM_ON_ENTITIES)):
-            self.hass.async_create_task(
-                self._async_call("homeassistant", "turn_on", {"entity_id": entity_id})
+            self.config_entry.async_create_task(
+                self.hass, self._async_call("homeassistant", "turn_on", {"entity_id": entity_id})
             )
 
     def _arm_covers(self) -> None:
@@ -1055,12 +1057,13 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 current = -1
             if current > sensor.arm_cover_position:
                 self._log("log_cover", name=sensor.conf.name, position=sensor.arm_cover_position)
-                self.hass.async_create_task(
+                self.config_entry.async_create_task(
+                    self.hass,
                     self._async_call(
                         "cover",
                         "set_cover_position",
                         {"entity_id": sensor.arm_cover, "position": sensor.arm_cover_position},
-                    )
+                    ),
                 )
 
     def _lock_door(self) -> None:
@@ -1076,7 +1079,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             return
         self._log("log_locked")
         self.lock_sent = dt_util.utcnow()
-        self.hass.async_create_task(self._async_call("lock", "lock", {"entity_id": lock}))
+        self.config_entry.async_create_task(
+            self.hass, self._async_call("lock", "lock", {"entity_id": lock})
+        )
 
     def _lock_bounced(self, old: State | None, new: State) -> bool:
         """True if the lock fell back to unlocked right after our lock command."""
@@ -1124,8 +1129,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                     "volume_reset", self._async_volume(players, float(self.opt(CONF_RESET_VOLUME)))
                 )
         for entity_id in self._filter("armed_on", self.opt_list(CONF_ARM_ON_ENTITIES)):
-            self.hass.async_create_task(
-                self._async_call("homeassistant", "turn_off", {"entity_id": entity_id})
+            self.config_entry.async_create_task(
+                self.hass, self._async_call("homeassistant", "turn_off", {"entity_id": entity_id})
             )
         for camera in self._cameras():
             self._camera_task(camera, "privacy", self._async_camera_disarmed(camera))
@@ -1807,8 +1812,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             self._cancel(f"garage_{garage.garage_id}")
             if self._value(panel) != sm.DISARMED:
                 self._log("log_garage_disarmed")
-                self.hass.async_create_task(
-                    self._async_call("alarm_control_panel", "alarm_disarm", {"entity_id": panel})
+                self.config_entry.async_create_task(
+                    self.hass,
+                    self._async_call("alarm_control_panel", "alarm_disarm", {"entity_id": panel}),
                 )
             return
         delay = timedelta(minutes=float(garage.conf.get(CONF_GARAGE_DELAY, 2)))
@@ -1824,8 +1830,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         if self._value(panel) == sm.ARMED_AWAY:
             return
         self._log("log_garage_armed")
-        self.hass.async_create_task(
-            self._async_call("alarm_control_panel", "alarm_arm_away", {"entity_id": panel})
+        self.config_entry.async_create_task(
+            self.hass,
+            self._async_call("alarm_control_panel", "alarm_arm_away", {"entity_id": panel}),
         )
 
     @callback
@@ -1858,7 +1865,9 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 continue
             if self._value(garage.conf.get(CONF_GARAGE_PANEL)) != sm.ARMED_AWAY:
                 continue
-            self.hass.async_create_task(self._async_garage_motion(garage, new.name))
+            self.config_entry.async_create_task(
+                self.hass, self._async_garage_motion(garage, new.name)
+            )
 
     async def _async_garage_motion(self, garage: Garage, camera: str) -> None:
         await self._async_notify(

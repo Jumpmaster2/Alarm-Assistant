@@ -57,7 +57,9 @@ async def test_user_flow(hass: HomeAssistant, base_states) -> None:
     assert entry.options["notify_services"] == ["notify.phone"]
     assert entry.options["code"].startswith("pbkdf2_sha256$")
     assert verify_code("4711", entry.options["code"])
-    assert entry.options["entry_delay"] == 30
+    # only values that differ from the defaults are stored
+    assert "entry_delay" not in entry.options
+    assert entry.runtime_data.opt("entry_delay") == 30
     assert "next_flow" not in result
 
 

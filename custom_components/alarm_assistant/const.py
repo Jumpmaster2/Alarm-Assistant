@@ -179,6 +179,12 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_HINT_DURATION: 30,
 }
 
+
+def without_defaults(options: dict[str, object]) -> dict[str, object]:
+    """Options that differ from the defaults (later default changes reach every installation)."""
+    return {k: v for k, v in options.items() if k not in DEFAULTS or DEFAULTS[k] != v}
+
+
 # Options without a default (entities or texts that may be empty).
 OPTIONAL_TEXT_KEYS: Final = (
     CONF_VACUUM,

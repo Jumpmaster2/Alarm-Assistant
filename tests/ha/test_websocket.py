@@ -43,7 +43,8 @@ async def test_config_and_options(hass: HomeAssistant, base_states, hass_ws_clie
     msg = await client.receive_json()
     assert msg["success"]
     assert "lock" not in entry.options
-    assert entry.options["entry_delay"] == 30
+    assert "entry_delay" not in entry.options
+    assert entry.runtime_data.opt("entry_delay") == 30
 
     await client.send_json_auto_id({"type": "alarm_assistant/save_options", "code": "99x"})
     msg = await client.receive_json()
@@ -193,3 +194,16 @@ async def test_invalid_subentries_are_rejected(
     assert (await save({"entity": DOOR, "type": "door"}))["success"]
     msg = await save({"entity": DOOR, "type": "window"}, "Y")
     assert msg["error"]["message"] == "entity:already_configured"
+
+
+async def test_test_arm_needs_loaded_entry(
+    hass: HomeAssistant, base_states, hass_ws_client
+) -> None:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    client = await hass_ws_client(hass)
+    await hass.config_entries.async_unload(entry.entry_id)
+    await client.send_json_auto_id({"type": "alarm_assistant/test_arm", "disabled": []})
+    msg = await client.receive_json()
+    assert not msg["success"]
+    assert msg["error"]["code"] == "not_found"
