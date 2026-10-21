@@ -233,7 +233,7 @@
           "unknown_presence": "Handy ohne bekannten Zustand zählt als"
         },
         "data_description": {
-          "wifi_sensors": "Sensoren mit dem Namen des verbundenen WLANs (Companion App: sensor.<handy>_wifi_connection) für Handys ohne Unterpunkt Person.",
+          "wifi_sensors": "Sensoren mit dem Namen des verbundenen WLANs (Companion App: sensor.handy_wifi_connection) für Handys ohne Unterpunkt Person.",
           "home_networks": "Namen (SSID) der WLANs zuhause, genau wie vom WLAN-Sensor gemeldet, z. B. MeinWLAN.",
           "unknown_presence": "Ein Handy, das aus ist, einen leeren Akku hat oder nichts meldet (nicht verfügbar/unbekannt). Zuhause ist sicherer: Es wird nicht scharf geschaltet, solange vielleicht noch jemand da ist.",
           "presence_mode": "WLAN der Handys: über die Unterpunkte Person bzw. WLAN-Sensoren der Companion App. Personen: über die Home-Assistant-Personen (person.*).",

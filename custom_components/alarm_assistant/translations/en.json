@@ -233,7 +233,7 @@
           "unknown_presence": "Phone without a known state counts as"
         },
         "data_description": {
-          "wifi_sensors": "Sensors with the name of the connected network (companion app: sensor.<phone>_wifi_connection) for phones without a person sub item.",
+          "wifi_sensors": "Sensors with the name of the connected network (companion app: sensor.phone_wifi_connection) for phones without a person sub item.",
           "home_networks": "Names (SSID) of the networks at home, exactly as the Wi-Fi sensor reports them, e.g. MyWifi.",
           "unknown_presence": "A phone that is switched off, has an empty battery or does not report (unavailable/unknown). At home is safer: the panel is not armed while someone may be at home.",
           "presence_mode": "Wi-Fi of the phones: by the person sub items or Wi-Fi sensors of the companion app. Persons: by the Home Assistant persons (person.*).",

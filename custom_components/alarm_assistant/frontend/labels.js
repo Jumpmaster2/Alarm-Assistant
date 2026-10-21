@@ -180,7 +180,7 @@ export const LABELS = {
   ],
   "wifi_sensors": [
    "Weitere WLAN-Sensoren",
-   "Sensoren mit dem Namen des verbundenen WLANs (Companion App: sensor.<handy>_wifi_connection) für Handys ohne Unterpunkt Person."
+   "Sensoren mit dem Namen des verbundenen WLANs (Companion App: sensor.handy_wifi_connection) für Handys ohne Unterpunkt Person."
   ],
   "home_networks": [
    "Heim-WLANs",
@@ -606,7 +606,7 @@ export const LABELS = {
   ],
   "wifi_sensors": [
    "Additional Wi-Fi sensors",
-   "Sensors with the name of the connected network (companion app: sensor.<phone>_wifi_connection) for phones without a person sub item."
+   "Sensors with the name of the connected network (companion app: sensor.phone_wifi_connection) for phones without a person sub item."
   ],
   "home_networks": [
    "Home networks",
