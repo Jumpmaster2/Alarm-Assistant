@@ -714,3 +714,33 @@ async def test_simulate_only_in_test_mode(
     await _arm(hass)
     assert not entry.runtime_data.simulate_trigger()
     assert _state(hass) == "armed_away"
+
+
+async def test_lock_coming_back_does_not_disarm(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    """A lock that reconnects reports 'unlocked' again: no unlocking by a person."""
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(lock=LOCK))
+    await set_state(hass, LOCK, "unavailable")
+    await _arm(hass)
+    await set_state(hass, LOCK, "unlocked")
+    assert _state(hass) == "armed_away"
+    await set_state(hass, LOCK, "locked")
+    await set_state(hass, LOCK, "unlocked")
+    assert _state(hass) == "disarmed"
+
+
+async def test_jammed_lock_warns_and_retries(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(**REACTIONS))
+    await _arm(hass)
+    assert len(calls["lock"]) == 1
+    await set_state(hass, LOCK, "locking")
+    await set_state(hass, LOCK, "jammed")
+    assert _state(hass) == "armed_away"
+    assert any("retried" in c.data["message"] for c in calls["notify"])
+    await advance(hass, freezer, 11)
+    assert len(calls["lock"]) == 2

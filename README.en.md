@@ -41,7 +41,8 @@ The integration is event driven: it only reacts to state changes of the configur
 
 ### Door lock and children
 
-* Unlocking or opening the lock disarms.
+* Unlocking or opening the lock disarms. A lock that comes back from "unavailable" (radio, bridge, battery) as unlocked does not count as unlocking.
+* If the lock falls back after locking or reports "jammed", the panel stays armed, a message is sent and locking is retried once.
 * Arming locks the door when it is closed and no children are alone at home.
 * **Children alone at home** (switch) prevents automatic arming and locking and controls the camera. It is reset a configurable time after unlocking and at night.
 

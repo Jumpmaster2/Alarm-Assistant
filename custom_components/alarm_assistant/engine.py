@@ -159,6 +159,7 @@ type AlarmConfigEntry = ConfigEntry[AlarmEngine]
 
 INVALID = (STATE_UNAVAILABLE, STATE_UNKNOWN)
 UNLOCKED_STATES = ("unlocked", "open", "opening")
+STATE_JAMMED = "jammed"
 # A lock that falls back to "unlocked" this soon after we locked it did not
 # lock (bolt blocked); this is no unlocking by a person.
 LOCK_SETTLE = 20
@@ -1313,9 +1314,17 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     def _on_lock(self, event: Event[EventStateChangedData]) -> None:
         new = event.data["new_state"]
         old = event.data["old_state"]
-        if new is None or new.state not in UNLOCKED_STATES:
+        if new is None:
             return
-        if old is not None and old.state == new.state:
+        if new.state == STATE_JAMMED:
+            if self.state in sm.ARMED_STATES and (old is None or old.state != STATE_JAMMED):
+                self._lock_failed()
+            return
+        if new.state not in UNLOCKED_STATES:
+            return
+        # a lock that comes back (radio, bridge, battery) reports its state again,
+        # this is no unlocking by a person
+        if old is None or old.state in INVALID or old.state == new.state:
             return
         if self.state in sm.ARMED_STATES and self._lock_bounced(old, new):
             self._lock_failed()

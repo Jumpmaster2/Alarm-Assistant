@@ -41,7 +41,8 @@ Die Integration arbeitet ereignisgesteuert: Sie reagiert nur auf Zustandswechsel
 
 ### Türschloss und Kinder
 
-* Entriegeln oder Öffnen des Schlosses schaltet unscharf.
+* Entriegeln oder Öffnen des Schlosses schaltet unscharf. Meldet sich ein Schloss nach "nicht verfügbar" (Funk, Bridge, Batterie) als entriegelt zurück, zählt das nicht als Entriegeln.
+* Fällt das Schloss nach dem Abschließen zurück oder meldet es "blockiert", bleibt die Anlage scharf, es kommt eine Meldung und ein zweiter Versuch.
 * Beim Scharfschalten wird abgeschlossen, wenn die Tür zu ist und keine Kinder alleine zuhause sind.
 * **Kinder alleine zuhause** (Schalter) verhindert automatisches Scharfschalten und Abschließen und steuert die Kamera. Er wird eine einstellbare Zeit nach dem Entriegeln und nachts zurückgesetzt.
 
