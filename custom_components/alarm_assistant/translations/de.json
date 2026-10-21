@@ -26,7 +26,8 @@
           "disarm_after_trigger": "Nach der Auslösezeit unscharf",
           "code_arm_required": "Code auch zum Scharfschalten",
           "armed_on_entities": "An, solange scharf",
-          "code": "Code (optional)"
+          "code": "Code (optional)",
+          "code_confirm": "Code wiederholen"
         },
         "data_description": {
           "entry_delay": "Zeit zum Entschärfen, nachdem ein verzögerter Sensor (Tür, Bewegung) ausgelöst hat.",
@@ -34,12 +35,16 @@
           "trigger_time": "Wie lange der Alarm ausgelöst bleibt.",
           "disarm_after_trigger": "Aus: danach wieder scharf.",
           "armed_on_entities": "Beim Scharfschalten an, beim Unscharfschalten aus (z. B. Bewegungserkennung von Kameras).",
-          "code": "Zum Unscharfschalten nötig. Leer = kein Code."
+          "code": "4 bis 10 Ziffern. Zum Unscharfschalten nötig. Leer = kein Code."
         }
       }
     },
     "abort": {
       "single_instance_allowed": "Bereits eingerichtet."
+    },
+    "error": {
+      "code_invalid": "Der Code muss aus 4 bis 10 Ziffern bestehen (nur Zahlen, die Alarmzentrale zeigt ein Ziffernfeld).",
+      "code_mismatch": "Die beiden Codes stimmen nicht überein. Bitte zweimal denselben Code eingeben."
     }
   },
   "options": {
@@ -83,7 +88,8 @@
           "code_arm_required": "Code auch zum Scharfschalten",
           "armed_on_entities": "An, solange scharf",
           "new_code": "Neuer Code",
-          "remove_code": "Code entfernen"
+          "remove_code": "Code entfernen",
+          "code_confirm": "Code wiederholen"
         },
         "data_description": {
           "entry_delay": "Zeit zum Entschärfen, nachdem ein verzögerter Sensor (Tür, Bewegung) ausgelöst hat.",
@@ -91,7 +97,7 @@
           "trigger_time": "Wie lange der Alarm ausgelöst bleibt.",
           "disarm_after_trigger": "Aus: danach wieder scharf.",
           "armed_on_entities": "Beim Scharfschalten an, beim Unscharfschalten aus (z. B. Bewegungserkennung von Kameras).",
-          "new_code": "Leer lassen, um den bisherigen Code zu behalten."
+          "new_code": "4 bis 10 Ziffern. Leer lassen, um den bisherigen Code zu behalten."
         },
         "description": "Code gesetzt: {code}"
       },
@@ -263,6 +269,10 @@
           }
         }
       }
+    },
+    "error": {
+      "code_invalid": "Der Code muss aus 4 bis 10 Ziffern bestehen (nur Zahlen, die Alarmzentrale zeigt ein Ziffernfeld).",
+      "code_mismatch": "Die beiden Codes stimmen nicht überein. Bitte zweimal denselben Code eingeben."
     }
   },
   "config_subentries": {

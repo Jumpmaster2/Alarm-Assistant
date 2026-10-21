@@ -66,12 +66,12 @@ class AlarmPanel(AlarmEntity, AlarmControlPanelEntity):
             "test_disabled": sorted(engine.test) if engine.test is not None else [],
         }
 
-    def _check(self, code: str | None, arming: bool) -> None:
-        if not self.coordinator.check_code(code, arming):
+    async def _async_check(self, code: str | None, arming: bool) -> None:
+        if not await self.coordinator.async_check_code(code, arming):
             raise ServiceValidationError(translation_domain=DOMAIN, translation_key="wrong_code")
 
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
-        self._check(code, True)
+        await self._async_check(code, True)
         check = self.coordinator.arm()
         if not check.ok:
             raise ServiceValidationError(
@@ -83,5 +83,5 @@ class AlarmPanel(AlarmEntity, AlarmControlPanelEntity):
             )
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
-        self._check(code, False)
+        await self._async_check(code, False)
         self.coordinator.disarm()

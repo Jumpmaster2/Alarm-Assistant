@@ -13,7 +13,7 @@ Die Integration arbeitet ereignisgesteuert: Sie reagiert nur auf Zustandswechsel
 ### Alarmzentrale
 
 * Modus **Abwesend** mit Ausgangsverzögerung (0 = sofort scharf), Eingangsverzögerung und Auslösezeit. Danach wieder scharf oder, wenn eingestellt, unscharf.
-* Optionaler Code (zum Unscharfschalten, wahlweise auch zum Scharfschalten). Gespeichert wird nur ein Hash.
+* Optionaler Code (zum Unscharfschalten, wahlweise auch zum Scharfschalten). Der Code hat 4 bis 10 Ziffern; gespeichert wird nur ein gesalzener Hash (PBKDF2). Codes älterer Versionen funktionieren weiter und werden beim nächsten richtigen Unscharfschalten umgestellt. Nach jeweils 5 falschen Eingaben hintereinander kommt eine Meldung.
 * **Sensoren** werden einzeln angelegt (Unterpunkt "Sensor"): Tür (verzögert), Fenster (sofort), Bewegung (verzögert, darf beim Scharfschalten aktiv sein) oder Sonstiges. Alle Eigenschaften lassen sich pro Sensor ändern.
 * **Offene Fenster** werden beim Scharfschalten bis zum Unscharfschalten ignoriert, es kommt eine Benachrichtigung mit den offenen Fenstern. Eine offene Tür verhindert das Scharfschalten (mit Benachrichtigung), außer während einer Ausgangsverzögerung.
 * Ein Sensor, der nicht verfügbar wird, löst nicht aus. War er vorher geschlossen und meldet sich offen zurück, löst er aus.

@@ -15,7 +15,7 @@ from custom_components.alarm_assistant.const import (
     SUBENTRY_GARAGE,
     SUBENTRY_PERSON,
 )
-from custom_components.alarm_assistant.engine import hash_code
+from custom_components.alarm_assistant.logic.code import hash_code, legacy_hash, verify_code
 
 from .conftest import (
     AIRCON,
@@ -269,6 +269,37 @@ async def test_code(
     assert _state(hass) == "armed_away"
     await _disarm(hass, "1234")
     assert _state(hass) == "disarmed"
+
+
+async def test_legacy_code_is_upgraded_without_reload(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    """A code hash of version 0.4 still works and is stored salted afterwards."""
+    freezer.move_to(START)
+    entry = make_entry(code=legacy_hash("1234"))
+    await setup_entry(hass, entry)
+    engine = entry.runtime_data
+    await _arm(hass)
+    await _disarm(hass, "1234")
+    await hass.async_block_till_done()
+    assert _state(hass) == "disarmed"
+    assert entry.options["code"].startswith("pbkdf2_sha256$")
+    assert verify_code("1234", entry.options["code"])
+    assert entry.runtime_data is engine  # no reload for the new hash
+
+
+async def test_wrong_codes_are_reported(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(code=hash_code("1234")))
+    await _arm(hass)
+    for _ in range(5):
+        with pytest.raises(ServiceValidationError):
+            await _disarm(hass, "0000")
+    await hass.async_block_till_done()
+    assert any("5 times" in c.data["message"] for c in calls["notify"])
+    assert _state(hass) == "armed_away"
 
 
 AUTO_ARM = {

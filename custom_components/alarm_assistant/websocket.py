@@ -26,7 +26,7 @@ from .const import (
     SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
 )
-from .engine import hash_code
+from .logic.code import hash_code, valid_code
 from .logic.state_machine import SENSOR_TYPES
 
 DATA_WS = f"{DOMAIN}_ws_registered"
@@ -148,8 +148,8 @@ def ws_config(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
     }
 )
 @websocket_api.require_admin
-@callback
-def ws_save_options(
+@websocket_api.async_response
+async def ws_save_options(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
 ) -> None:
     entry = _entry(hass)
@@ -174,7 +174,10 @@ def ws_save_options(
     if msg["remove_code"]:
         options.pop(CONF_CODE, None)
     elif code := str(msg.get("code") or "").strip():
-        options[CONF_CODE] = hash_code(code)
+        if not valid_code(code):
+            connection.send_error(msg["id"], "invalid", "code_invalid")
+            return
+        options[CONF_CODE] = await hass.async_add_executor_job(hash_code, code)
     hass.config_entries.async_update_entry(entry, options=options)
     connection.send_result(msg["id"], config_payload(hass, entry))
 

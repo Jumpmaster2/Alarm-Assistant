@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.alarm_assistant.const import SUBENTRY_PERSON
 from custom_components.alarm_assistant.diagnostics import async_get_config_entry_diagnostics
-from custom_components.alarm_assistant.engine import hash_code
+from custom_components.alarm_assistant.logic.code import hash_code
 
 from .conftest import WIFI_A, make_entry, setup_entry
 

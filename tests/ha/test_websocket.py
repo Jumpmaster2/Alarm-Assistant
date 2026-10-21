@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.alarm_assistant.engine import hash_code
+from custom_components.alarm_assistant.logic.code import hash_code, verify_code
 
 from .conftest import BALCONY, DOOR, make_entry, setup_entry
 
@@ -34,7 +34,7 @@ async def test_config_and_options(hass: HomeAssistant, base_states, hass_ws_clie
     assert msg["success"], msg
     assert entry.options["entry_delay"] == 45
     assert entry.options["turn_on_entities"] == ["light.hall"]
-    assert entry.options["code"] == hash_code("1234")
+    assert verify_code("1234", entry.options["code"])
 
     # clearing an optional entity removes it, a cleared number falls back to the default
     await client.send_json_auto_id(
@@ -45,9 +45,12 @@ async def test_config_and_options(hass: HomeAssistant, base_states, hass_ws_clie
     assert "lock" not in entry.options
     assert entry.options["entry_delay"] == 30
 
+    await client.send_json_auto_id({"type": "alarm_assistant/save_options", "code": "99x"})
+    msg = await client.receive_json()
+    assert msg["error"]["message"] == "code_invalid"
     await client.send_json_auto_id({"type": "alarm_assistant/save_options", "code": "9999"})
     assert (await client.receive_json())["success"]
-    assert entry.options["code"] == hash_code("9999")
+    assert verify_code("9999", entry.options["code"])
     await client.send_json_auto_id({"type": "alarm_assistant/save_options", "remove_code": True})
     assert (await client.receive_json())["success"]
     assert "code" not in entry.options

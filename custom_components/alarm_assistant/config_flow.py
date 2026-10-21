@@ -141,12 +141,13 @@ from .const import (
     SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
 )
-from .engine import hash_code
 from .logic.auto_arm import PRESENCE_MODES
+from .logic.code import hash_code, valid_code
 from .logic.misc import WEEKDAYS
 from .logic.state_machine import SENSOR_TYPES, TYPE_WINDOW, type_defaults
 
 CONF_NEW_CODE = "new_code"
+CONF_CODE_CONFIRM = "code_confirm"
 CONF_REMOVE_CODE = "remove_code"
 SECTION_ANNOUNCE = "announce"
 SECTION_SIREN = "siren"
@@ -231,6 +232,19 @@ def _flatten(user_input: dict[str, Any], sections: tuple[str, ...]) -> dict[str,
     for key in sections:
         flat.update(user_input.get(key) or {})
     return flat
+
+
+def _password() -> TextSelector:
+    return TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+
+
+def _code_error(code: str, confirm: str) -> str | None:
+    """Error key for a new code (None: valid)."""
+    if not valid_code(code):
+        return "code_invalid"
+    if code != confirm:
+        return "code_mismatch"
+    return None
 
 
 def _schema_keys(schema: vol.Schema) -> set[str]:
@@ -463,22 +477,27 @@ class AlarmConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_alarm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
         if user_input is not None:
             data = _clean(user_input)
             code = str(data.pop(CONF_CODE, "") or "").strip()
-            options = {**DEFAULTS, **self._options, **data}
-            if code:
-                options[CONF_CODE] = hash_code(code)
-            return self.async_create_entry(title=NAME, data={}, options=options)
+            confirm = str(data.pop(CONF_CODE_CONFIRM, "") or "").strip()
+            if code and (error := _code_error(code, confirm)):
+                errors[CONF_CODE] = error
+            else:
+                options = {**DEFAULTS, **self._options, **data}
+                if code:
+                    options[CONF_CODE] = await self.hass.async_add_executor_job(hash_code, code)
+                return self.async_create_entry(title=NAME, data={}, options=options)
+        values = {**DEFAULTS, **_clean(user_input or {})}
         schema = vol.Schema(
             {
-                **_alarm_fields({}),
-                vol.Optional(CONF_CODE): TextSelector(
-                    TextSelectorConfig(type=TextSelectorType.PASSWORD)
-                ),
+                **_alarm_fields(values),
+                vol.Optional(CONF_CODE): _password(),
+                vol.Optional(CONF_CODE_CONFIRM): _password(),
             }
         )
-        return self.async_show_form(step_id="alarm", data_schema=schema)
+        return self.async_show_form(step_id="alarm", data_schema=schema, errors=errors)
 
 
 # ---------------------------------------------------------------- options flow
@@ -528,32 +547,37 @@ class AlarmOptionsFlow(OptionsFlow):
         return await self._form("general", _general_schema(self.hass, self._values), user_input)
 
     async def async_step_alarm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        fields = _alarm_fields(self._values)
-        schema = vol.Schema(
-            {
-                **fields,
-                vol.Optional(CONF_NEW_CODE): TextSelector(
-                    TextSelectorConfig(type=TextSelectorType.PASSWORD)
-                ),
-                vol.Optional(CONF_REMOVE_CODE, default=False): BooleanSelector(),
-            }
-        )
+        errors: dict[str, str] = {}
         if user_input is not None:
             data = dict(user_input)
             new_code = str(data.pop(CONF_NEW_CODE, "") or "").strip()
+            confirm = str(data.pop(CONF_CODE_CONFIRM, "") or "").strip()
             remove = bool(data.pop(CONF_REMOVE_CODE, False))
-            options = {**self.config_entry.options}
-            for key in _schema_keys(vol.Schema(fields)):
-                options.pop(key, None)
-            options.update(_clean(data))
-            if remove:
-                options.pop(CONF_CODE, None)
-            elif new_code:
-                options[CONF_CODE] = hash_code(new_code)
-            return self.async_create_entry(data=options)
+            if new_code and not remove and (error := _code_error(new_code, confirm)):
+                errors[CONF_NEW_CODE] = error
+            else:
+                options = {**self.config_entry.options}
+                for key in _schema_keys(vol.Schema(_alarm_fields({}))):
+                    options.pop(key, None)
+                options.update(_clean(data))
+                if remove:
+                    options.pop(CONF_CODE, None)
+                elif new_code:
+                    options[CONF_CODE] = await self.hass.async_add_executor_job(hash_code, new_code)
+                return self.async_create_entry(data=options)
+        values = {**self._values, **_clean(user_input or {})}
+        schema = vol.Schema(
+            {
+                **_alarm_fields(values),
+                vol.Optional(CONF_NEW_CODE): _password(),
+                vol.Optional(CONF_CODE_CONFIRM): _password(),
+                vol.Optional(CONF_REMOVE_CODE, default=False): BooleanSelector(),
+            }
+        )
         return self.async_show_form(
             step_id="alarm",
             data_schema=schema,
+            errors=errors,
             description_placeholders={"code": "✔" if self._values.get(CONF_CODE) else "–"},
         )
 

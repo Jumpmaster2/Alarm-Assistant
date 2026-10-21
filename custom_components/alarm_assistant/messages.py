@@ -43,10 +43,9 @@ _TEXTS: dict[str, dict[str, str]] = {
     "push_lock_failed": {
         "de": "Das Schloss hat sich wieder nicht verriegelt. Die Alarmanlage bleibt scharf, "
         "die Tür ist aber nicht abgeschlossen.",
-        "en": "The lock did not engage again. The alarm stays armed, "
-        "but the door is not locked.",
+        "en": "The lock did not engage again. The alarm stays armed, but the door is not locked.",
     },
-    "title_prewarn":{"de": "Alarmanlage aktiviert bald", "en": "Alarm will arm soon"},
+    "title_prewarn": {"de": "Alarmanlage aktiviert bald", "en": "Alarm will arm soon"},
     "push_prewarn": {
         "de": "Niemand ist zuhause. Die Alarmanlage wird in {minutes} Minuten automatisch "
         "aktiviert, wenn Kinder alleine zuhause nicht aktiviert wird.",
@@ -75,6 +74,11 @@ _TEXTS: dict[str, dict[str, str]] = {
     "tts_garage": {
         "de": "Achtung. Bewegung in der Garage erkannt.",
         "en": "Attention. Motion detected in the garage.",
+    },
+    "title_wrong_code": {"de": "Falscher Code", "en": "Wrong code"},
+    "push_wrong_code": {
+        "de": "An der Alarmzentrale wurde {count}-mal hintereinander ein falscher Code eingegeben.",
+        "en": "A wrong code was entered {count} times in a row at the alarm panel.",
     },
     "title_test": {"de": "TEST Alarmanlage", "en": "TEST alarm"},
     "push_test": {
@@ -151,6 +155,10 @@ _TEXTS: dict[str, dict[str, str]] = {
     "log_garage_armed": {"de": "Garage scharf geschaltet", "en": "Garage armed"},
     "log_garage_disarmed": {"de": "Garage unscharf geschaltet", "en": "Garage disarmed"},
     "log_cover": {"de": "{name}: Rollo auf {position} %", "en": "{name}: cover to {position} %"},
+    "log_wrong_code": {
+        "de": "{count}-mal falscher Code eingegeben",
+        "en": "Wrong code entered {count} times",
+    },
     "log_test": {"de": "Testmeldung gesendet", "en": "Test message sent"},
 }
 

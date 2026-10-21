@@ -8,7 +8,6 @@ time, automatic arming, daily resets).
 from __future__ import annotations
 
 import asyncio
-import hashlib
 from collections.abc import Callable, Coroutine, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
@@ -151,6 +150,7 @@ from .logic import auto_arm as aa
 from .logic import camera as cam
 from .logic import state_machine as sm
 from .logic.call import CallSettings, dial_input, plan
+from .logic.code import hash_code, is_legacy, verify_code
 from .logic.misc import anyone_connected, join_names, next_daily, tag_action
 from .logic.sensors import contact_counts, effective_state, motion_suppressed
 from .messages import resolve_language, text
@@ -174,6 +174,8 @@ PAUSE_PTZ = 3
 FRIGATE_RESYNC = 10
 FRIGATE_RESYNC_MAX = 3
 FRIGATE_RESYNC_WINDOW = timedelta(minutes=10)
+# Every this many wrong codes in a row a message is sent.
+WRONG_CODE_ALERT = 5
 # Reaction sequences of an alarm that end with disarming.
 ALARM_TASKS = ("call", "siren", "announce", "announce_pending", "reactions")
 
@@ -181,10 +183,6 @@ ALARM_TASKS = ("call", "siren", "announce", "announce_pending", "reactions")
 async def _sleep(seconds: float) -> None:
     """Pause inside a reaction sequence (patched in tests)."""
     await asyncio.sleep(seconds)
-
-
-def hash_code(code: str) -> str:
-    return hashlib.sha256(code.encode()).hexdigest()
 
 
 def parse_time(value: Any, fallback: str = "00:00:00") -> time:
@@ -284,6 +282,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         # test alarm: reactions switched off (None: no test)
         self.test: set[str] | None = None
         self.test_last: list[str] = []
+        self.wrong_codes = 0
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}"
         )
@@ -291,6 +290,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         self._timers: dict[str, CALLBACK_TYPE] = {}
         self._tasks: dict[str, asyncio.Task] = {}
         self._build()
+        self._loaded = self._config_snapshot()
 
     # ------------------------------------------------------------------ config
 
@@ -332,6 +332,19 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     @property
     def call_configured(self) -> bool:
         return bool(self.opt(CONF_CALL_ADDON)) and bool(self.opt_list(CONF_CALL_TARGETS))
+
+    def _config_snapshot(self) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Configuration the engine was built from (without the code hash)."""
+        options = {k: v for k, v in self.config_entry.options.items() if k != CONF_CODE}
+        subentries = {
+            sub_id: (sub.subentry_type, sub.title, dict(sub.data))
+            for sub_id, sub in self.config_entry.subentries.items()
+        }
+        return options, subentries
+
+    def config_changed(self) -> bool:
+        """Something besides the code changed (then the entry is reloaded)."""
+        return self._config_snapshot() != self._loaded
 
     def _build(self) -> None:
         for sub_id, sub in self.config_entry.subentries.items():
@@ -819,10 +832,34 @@ class AlarmEngine(DataUpdateCoordinator[None]):
 
     # ------------------------------------------------------------------ panel
 
-    def check_code(self, code: str | None, arming: bool) -> bool:
+    async def async_check_code(self, code: str | None, arming: bool) -> bool:
         if not self.code_required or (arming and not self.code_arm_required):
             return True
-        return code is not None and hash_code(str(code)) == self.opt(CONF_CODE)
+        stored = str(self.opt(CONF_CODE))
+        if code is None or not await self.hass.async_add_executor_job(
+            verify_code, str(code), stored
+        ):
+            self._wrong_code()
+            return False
+        self.wrong_codes = 0
+        if is_legacy(stored):
+            # hash of an older version: store the code with a salt now
+            new = await self.hass.async_add_executor_job(hash_code, str(code))
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, options={**self.config_entry.options, CONF_CODE: new}
+            )
+        return True
+
+    def _wrong_code(self) -> None:
+        self.wrong_codes += 1
+        if self.wrong_codes % WRONG_CODE_ALERT:
+            return
+        self._log("log_wrong_code", count=self.wrong_codes)
+        self._notify(
+            self._push(CONF_NOTIFY),
+            self._mark(self.t("title_wrong_code")),
+            self._mark(self.t("push_wrong_code", count=self.wrong_codes)),
+        )
 
     # ------------------------------------------------------------------ test alarm
 

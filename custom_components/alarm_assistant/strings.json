@@ -26,7 +26,8 @@
           "disarm_after_trigger": "Disarm after the trigger time",
           "code_arm_required": "Code also for arming",
           "armed_on_entities": "On while armed",
-          "code": "Code (optional)"
+          "code": "Code (optional)",
+          "code_confirm": "Repeat code"
         },
         "data_description": {
           "entry_delay": "Time to disarm after a delayed sensor (door, motion) tripped.",
@@ -34,12 +35,16 @@
           "trigger_time": "How long the alarm stays triggered.",
           "disarm_after_trigger": "Off: armed again afterwards.",
           "armed_on_entities": "Turned on when armed, off when disarmed (e.g. camera motion detection).",
-          "code": "Needed to disarm. Leave empty for no code."
+          "code": "4 to 10 digits. Needed to disarm. Leave empty for no code."
         }
       }
     },
     "abort": {
       "single_instance_allowed": "Already configured."
+    },
+    "error": {
+      "code_invalid": "The code must have 4 to 10 digits (only numbers, the alarm panel shows a number pad).",
+      "code_mismatch": "The two codes do not match. Please enter the same code twice."
     }
   },
   "options": {
@@ -83,7 +88,8 @@
           "code_arm_required": "Code also for arming",
           "armed_on_entities": "On while armed",
           "new_code": "New code",
-          "remove_code": "Remove code"
+          "remove_code": "Remove code",
+          "code_confirm": "Repeat code"
         },
         "data_description": {
           "entry_delay": "Time to disarm after a delayed sensor (door, motion) tripped.",
@@ -91,7 +97,7 @@
           "trigger_time": "How long the alarm stays triggered.",
           "disarm_after_trigger": "Off: armed again afterwards.",
           "armed_on_entities": "Turned on when armed, off when disarmed (e.g. camera motion detection).",
-          "new_code": "Leave empty to keep the current code."
+          "new_code": "4 to 10 digits. Leave empty to keep the current code."
         },
         "description": "Code set: {code}"
       },
@@ -263,6 +269,10 @@
           }
         }
       }
+    },
+    "error": {
+      "code_invalid": "The code must have 4 to 10 digits (only numbers, the alarm panel shows a number pad).",
+      "code_mismatch": "The two codes do not match. Please enter the same code twice."
     }
   },
   "config_subentries": {

@@ -13,7 +13,7 @@ The integration is event driven: it only reacts to state changes of the configur
 ### Alarm panel
 
 * Mode **away** with exit delay (0 = armed immediately), entry delay and trigger time. Afterwards armed again or, if set, disarmed.
-* Optional code (for disarming, optionally also for arming). Only a hash is stored.
+* Optional code (for disarming, optionally also for arming). The code has 4 to 10 digits; only a salted hash (PBKDF2) is stored. Codes of older versions keep working and are converted at the next correct disarming. Every 5 wrong entries in a row a message is sent.
 * **Sensors** are added one by one (sub item "Sensor"): door (delayed), window (immediate), motion (delayed, may be active at arming) or other. Every property can be changed per sensor.
 * **Open windows** are ignored from arming until disarming, a notification lists them. An open door prevents arming (with a notification), except during an exit delay.
 * A sensor that becomes unavailable does not trigger. If it was closed before and comes back open, it triggers.

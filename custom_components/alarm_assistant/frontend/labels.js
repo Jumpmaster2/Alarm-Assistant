@@ -1,4 +1,5 @@
 // Generated from the translation source, do not edit by hand.
+// Run python scripts/build_labels.py after changing the translations.
 export const LABELS = {
  "de": {
   "language": [
@@ -33,18 +34,6 @@ export const LABELS = {
    "Nach der Auslösezeit unscharf",
    "Aus: danach wieder scharf."
   ],
-  "code": [
-   "Code (optional)",
-   "Zum Unscharfschalten nötig. Leer = kein Code."
-  ],
-  "new_code": [
-   "Neuer Code",
-   "Leer lassen, um den bisherigen Code zu behalten."
-  ],
-  "remove_code": [
-   "Code entfernen",
-   ""
-  ],
   "code_arm_required": [
    "Code auch zum Scharfschalten",
    ""
@@ -52,6 +41,22 @@ export const LABELS = {
   "armed_on_entities": [
    "An, solange scharf",
    "Beim Scharfschalten an, beim Unscharfschalten aus (z. B. Bewegungserkennung von Kameras)."
+  ],
+  "code": [
+   "Code (optional)",
+   "4 bis 10 Ziffern. Zum Unscharfschalten nötig. Leer = kein Code."
+  ],
+  "code_confirm": [
+   "Code wiederholen",
+   ""
+  ],
+  "new_code": [
+   "Neuer Code",
+   "4 bis 10 Ziffern. Leer lassen, um den bisherigen Code zu behalten."
+  ],
+  "remove_code": [
+   "Code entfernen",
+   ""
   ],
   "vacuum": [
    "Saugroboter",
@@ -157,10 +162,6 @@ export const LABELS = {
    "Weitere WLAN-Sensoren",
    "Handys ohne Unterpunkt Person. Personen werden als Unterpunkt \"Person\" angelegt."
   ],
-  "wifi_sensor": [
-   "WLAN-Sensor des Handys",
-   "Zeigt den Namen des verbundenen WLANs (Companion App)."
-  ],
   "home_networks": [
    "Heim-WLANs",
    "Namen der WLANs zuhause."
@@ -200,14 +201,6 @@ export const LABELS = {
   "lock_on_arm": [
    "Beim Scharfschalten abschließen",
    "Nicht, wenn Kinder alleine zuhause sind."
-  ],
-  "kids_reset_after_unlock": [
-   "Zurücksetzen nach dem Entriegeln",
-   ""
-  ],
-  "kids_reset_time": [
-   "Nachts zurücksetzen um",
-   ""
   ],
   "night_door_sensor": [
    "Türkontakt",
@@ -253,12 +246,20 @@ export const LABELS = {
    "Ansage beim Ausschalten per Tag",
    ""
   ],
+  "night_off_volume_players": [
+   "Lautsprecher für diese Ansage",
+   ""
+  ],
   "night_off_volume": [
    "Lautstärke dieser Ansage",
    ""
   ],
-  "night_off_volume_players": [
-   "Lautsprecher für diese Ansage",
+  "kids_reset_after_unlock": [
+   "Zurücksetzen nach dem Entriegeln",
+   ""
+  ],
+  "kids_reset_time": [
+   "Nachts zurücksetzen um",
    ""
   ],
   "hint_door_sensor": [
@@ -361,6 +362,10 @@ export const LABELS = {
    "Push mit Bild, wenn nicht unscharf",
    ""
   ],
+  "wifi_sensor": [
+   "WLAN-Sensor des Handys",
+   "Zeigt den Namen des verbundenen WLANs (Companion App)."
+  ],
   "garage_panel": [
    "Alarmzentrale Garage",
    ""
@@ -423,18 +428,6 @@ export const LABELS = {
    "Disarm after the trigger time",
    "Off: armed again afterwards."
   ],
-  "code": [
-   "Code (optional)",
-   "Needed to disarm. Leave empty for no code."
-  ],
-  "new_code": [
-   "New code",
-   "Leave empty to keep the current code."
-  ],
-  "remove_code": [
-   "Remove code",
-   ""
-  ],
   "code_arm_required": [
    "Code also for arming",
    ""
@@ -442,6 +435,22 @@ export const LABELS = {
   "armed_on_entities": [
    "On while armed",
    "Turned on when armed, off when disarmed (e.g. camera motion detection)."
+  ],
+  "code": [
+   "Code (optional)",
+   "4 to 10 digits. Needed to disarm. Leave empty for no code."
+  ],
+  "code_confirm": [
+   "Repeat code",
+   ""
+  ],
+  "new_code": [
+   "New code",
+   "4 to 10 digits. Leave empty to keep the current code."
+  ],
+  "remove_code": [
+   "Remove code",
+   ""
   ],
   "vacuum": [
    "Vacuum",
@@ -547,10 +556,6 @@ export const LABELS = {
    "Additional Wi-Fi sensors",
    "Phones without a person sub item. Persons are added as sub item \"Person\"."
   ],
-  "wifi_sensor": [
-   "Wi-Fi sensor of the phone",
-   "Shows the name of the connected network (companion app)."
-  ],
   "home_networks": [
    "Home networks",
    "Names of the networks at home."
@@ -590,14 +595,6 @@ export const LABELS = {
   "lock_on_arm": [
    "Lock when armed",
    "Not while children are alone at home."
-  ],
-  "kids_reset_after_unlock": [
-   "Reset after unlocking",
-   ""
-  ],
-  "kids_reset_time": [
-   "Reset at night",
-   ""
   ],
   "night_door_sensor": [
    "Door contact",
@@ -643,12 +640,20 @@ export const LABELS = {
    "Announce when switched off by tag",
    ""
   ],
+  "night_off_volume_players": [
+   "Speakers for this announcement",
+   ""
+  ],
   "night_off_volume": [
    "Volume of this announcement",
    ""
   ],
-  "night_off_volume_players": [
-   "Speakers for this announcement",
+  "kids_reset_after_unlock": [
+   "Reset after unlocking",
+   ""
+  ],
+  "kids_reset_time": [
+   "Reset at night",
    ""
   ],
   "hint_door_sensor": [
@@ -750,6 +755,10 @@ export const LABELS = {
   "person_push": [
    "Push with image when not disarmed",
    ""
+  ],
+  "wifi_sensor": [
+   "Wi-Fi sensor of the phone",
+   "Shows the name of the connected network (companion app)."
   ],
   "garage_panel": [
    "Garage alarm panel",

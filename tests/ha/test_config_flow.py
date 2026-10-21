@@ -13,7 +13,7 @@ from custom_components.alarm_assistant.const import (
     SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
 )
-from custom_components.alarm_assistant.engine import hash_code
+from custom_components.alarm_assistant.logic.code import verify_code
 
 from .conftest import AIRCON, BALCONY, DOOR, LOCK, make_entry, setup_entry
 
@@ -39,13 +39,22 @@ async def test_user_flow(hass: HomeAssistant, base_states) -> None:
     result = await hass.config_entries.flow.async_configure(result["flow_id"], GENERAL)
     assert result["step_id"] == "alarm"
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {**ALARM, "code": "4711"}
+        result["flow_id"], {**ALARM, "code": "4711", "code_confirm": "4712"}
+    )
+    assert result["errors"] == {"code": "code_mismatch"}
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**ALARM, "code": "47a1", "code_confirm": "47a1"}
+    )
+    assert result["errors"] == {"code": "code_invalid"}
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**ALARM, "code": "4711", "code_confirm": "4711"}
     )
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
     entry = result["result"]
     assert entry.options["notify_services"] == ["notify.phone"]
-    assert entry.options["code"] == hash_code("4711")
+    assert entry.options["code"].startswith("pbkdf2_sha256$")
+    assert verify_code("4711", entry.options["code"])
     assert entry.options["entry_delay"] == 30
     assert "next_flow" not in result
 
@@ -66,11 +75,19 @@ async def _options(hass: HomeAssistant, entry, step: str, data: dict) -> dict:
 async def test_options_code(hass: HomeAssistant, base_states) -> None:
     entry = make_entry()
     await setup_entry(hass, entry)
-    await _options(hass, entry, "alarm", {**ALARM, "new_code": "1234"})
-    assert entry.options["code"] == hash_code("1234")
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "alarm"}
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {**ALARM, "new_code": "12", "code_confirm": "12"}
+    )
+    assert result["errors"] == {"new_code": "code_invalid"}
+    await _options(hass, entry, "alarm", {**ALARM, "new_code": "1234", "code_confirm": "1234"})
+    assert verify_code("1234", entry.options["code"])
     # empty keeps the code
     await _options(hass, entry, "alarm", {**ALARM, "entry_delay": 45})
-    assert entry.options["code"] == hash_code("1234")
+    assert verify_code("1234", entry.options["code"])
     assert entry.options["entry_delay"] == 45
     await _options(hass, entry, "alarm", {**ALARM, "remove_code": True})
     assert "code" not in entry.options

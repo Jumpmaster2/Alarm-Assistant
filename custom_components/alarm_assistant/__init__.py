@@ -30,8 +30,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmConfigEntry) -> boo
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: AlarmConfigEntry) -> None:
-    """Options or subentries changed: reload."""
-    hass.config_entries.async_schedule_reload(entry.entry_id)
+    """Options or subentries changed: reload (a new code alone needs no reload)."""
+    if entry.runtime_data.config_changed():
+        hass.config_entries.async_schedule_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: AlarmConfigEntry) -> bool:

@@ -51,7 +51,8 @@ const UI = {
     none: "–",
     advanced: "Erweitert",
     newCode: "Neuer Code",
-    newCodeHelp: "Leer lassen, um den bisherigen Code zu behalten.",
+    newCodeHelp: "4 bis 10 Ziffern. Leer lassen, um den bisherigen Code zu behalten.",
+    codeConfirm: "Code wiederholen",
     removeCode: "Code entfernen",
     codeSet: "Code ist gesetzt",
     codeNotSet: "Kein Code",
@@ -115,6 +116,8 @@ const UI = {
       name_required: "Bitte einen Namen eingeben.",
       entity_required: "Bitte eine Entität wählen.",
       type_required: "Bitte einen Typ wählen.",
+      code_invalid: "Der Code muss aus 4 bis 10 Ziffern bestehen.",
+      code_mismatch: "Die beiden Codes stimmen nicht überein.",
     },
     loadError: "Konfiguration konnte nicht geladen werden",
     up: "nach oben",
@@ -194,7 +197,8 @@ const UI = {
     none: "–",
     advanced: "Advanced",
     newCode: "New code",
-    newCodeHelp: "Leave empty to keep the current code.",
+    newCodeHelp: "4 to 10 digits. Leave empty to keep the current code.",
+    codeConfirm: "Repeat code",
     removeCode: "Remove code",
     codeSet: "A code is set",
     codeNotSet: "No code",
@@ -258,6 +262,8 @@ const UI = {
       name_required: "Please enter a name.",
       entity_required: "Please choose an entity.",
       type_required: "Please choose a type.",
+      code_invalid: "The code must have 4 to 10 digits.",
+      code_mismatch: "The two codes do not match.",
     },
     loadError: "Could not load the configuration",
     up: "up",
@@ -1020,6 +1026,8 @@ class AlarmAssistantPanel extends HTMLElement {
         <label class="field"><span class="lbl">${esc(ui.newCode)}</span>
           <input type="password" inputmode="numeric" autocomplete="new-password" data-card-id="code" data-k="new_code" value="${esc(draft.new_code || "")}">
           <small>${esc(ui.newCodeHelp)}</small></label>
+        <label class="field"><span class="lbl">${esc(ui.codeConfirm)}</span>
+          <input type="password" inputmode="numeric" autocomplete="new-password" data-card-id="code" data-k="code_confirm" value="${esc(draft.code_confirm || "")}"></label>
         ${this._toggle("code", "remove_code", ui.removeCode, "", !!draft.remove_code)}
         ${this._toggle("code", "code_arm_required", ui.codeArm, "", !!codeArm)}
       </div>
@@ -1413,7 +1421,13 @@ class AlarmAssistantPanel extends HTMLElement {
     const msg = { type: "alarm_assistant/save_options", options: {} };
     if (cardId === "code") {
       if (draft.remove_code) msg.remove_code = true;
-      else if (draft.new_code) msg.code = String(draft.new_code);
+      else if (draft.new_code) {
+        if (String(draft.new_code) !== String(draft.code_confirm || "")) {
+          this._cardMessage(button, this.ui.errors.code_mismatch, true);
+          return;
+        }
+        msg.code = String(draft.new_code);
+      }
       if ("code_arm_required" in draft) msg.options.code_arm_required = draft.code_arm_required;
     } else {
       msg.options = { ...draft };
@@ -1426,7 +1440,7 @@ class AlarmAssistantPanel extends HTMLElement {
       this._toast(this.ui.saved);
     } catch (err) {
       button.disabled = false;
-      this._cardMessage(button, err.message || String(err), true);
+      this._cardMessage(button, this.ui.errors[err.message] || err.message || String(err), true);
     }
   }
 
