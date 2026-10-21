@@ -89,7 +89,7 @@ Nach der Einrichtung gibt es in der Seitenleiste die Seite **Alarm Assistant** (
 
 Die Einstellungen lassen sich weiterhin auch über den Einrichtungsdialog ändern:
 
-* **Einrichtung:** Benachrichtigungen, Alarmzeiten und Code.
+* **Einrichtung:** Benachrichtigungen, Alarmzeiten und Code; optional werden vorhandene Tür-, Fenster- und Bewegungsmelder (nach Geräteklasse) direkt als Sensoren übernommen.
 * **Optionen** (Menü): Benachrichtigungen, Alarmzeiten und Code, Bewegungsfilter, Reaktionen bei Alarm, Telefonanruf, Automatisch scharf, Türschloss, Nacht-Türalarm, Kinder und Hinweise.
 * **Unterpunkte:** Sensor, Person, Kamera, Garage (beliebig viele).
 

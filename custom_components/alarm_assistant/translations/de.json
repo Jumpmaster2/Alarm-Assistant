@@ -43,6 +43,16 @@
           "code_arm_required": "Aus: Scharfschalten geht ohne Code, nur Unscharfschalten braucht ihn.",
           "code_confirm": "Denselben Code noch einmal eingeben."
         }
+      },
+      "sensors": {
+        "title": "Sensoren",
+        "description": "Optional: die Tür-, Fenster- und Bewegungsmelder der Alarmanlage wählen. Jeder wird ein Unterpunkt Sensor mit einem passenden Typ zu seiner Geräteklasse (Tür = verzögert, Fenster = sofort, Bewegung). Sensoren lassen sich jederzeit ändern, ergänzen oder löschen.",
+        "data": {
+          "sensors": "Sensoren"
+        },
+        "data_description": {
+          "sensors": "Angeboten werden nur Binärsensoren mit der Geräteklasse Tür, Garagentor, Fenster, Öffnung, Bewegung, Belegung oder Anwesenheit. Leer = Sensoren später anlegen."
+        }
       }
     },
     "abort": {

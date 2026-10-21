@@ -89,7 +89,7 @@ After the setup the sidebar has the page **Alarm Assistant** (administrators onl
 
 The settings can still be changed through the config flow as well:
 
-* **Setup:** notifications, alarm times and code.
+* **Setup:** notifications, alarm times and code; optionally existing door, window and motion sensors (by device class) are taken over as sensors right away.
 * **Options** (menu): notifications, alarm times and code, motion filter, reactions on alarm, phone call, automatic arming, door lock, night door alarm, children and hints.
 * **Sub items:** sensor, person, camera, garage (as many as needed).
 

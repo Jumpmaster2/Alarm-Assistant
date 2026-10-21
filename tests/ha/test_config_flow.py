@@ -49,6 +49,8 @@ async def test_user_flow(hass: HomeAssistant, base_states) -> None:
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {**ALARM, "code": "4711", "code_confirm": "4711"}
     )
+    assert result["step_id"] == "sensors"
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"sensors": []})
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
     entry = result["result"]
@@ -368,3 +370,23 @@ async def test_call_needs_supervisor(hass: HomeAssistant, base_states) -> None:
         hass, entry, "call", {**CALL, "call_addon": "abcd_ha-sip", "call_targets": ["sip:1@x"]}
     )
     assert errors == {"call_addon": "supervisor_required"}
+
+
+async def test_user_flow_takes_over_sensors(hass: HomeAssistant, base_states) -> None:
+    hass.states.async_set(DOOR, "off", {"device_class": "door", "friendly_name": "Front door"})
+    hass.states.async_set(BALCONY, "off", {"device_class": "window"})
+    hass.states.async_set("binary_sensor.hall", "off", {"device_class": "motion"})
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], GENERAL)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], ALARM)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"sensors": [DOOR, BALCONY, "binary_sensor.hall"]}
+    )
+    await hass.async_block_till_done()
+    entry = result["result"]
+    subs = {s.data["entity"]: s for s in entry.subentries.values()}
+    assert subs[DOOR].data["type"] == "door"
+    assert subs[DOOR].title == "Front door"
+    assert subs[BALCONY].data["type"] == "window"
+    assert subs["binary_sensor.hall"].data["type"] == "motion"
+    assert hass.states.get("alarm_control_panel.alarm_assistant") is not None

@@ -10,6 +10,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
+    ConfigSubentryData,
     ConfigSubentryFlow,
     OptionsFlow,
     SubentryFlowResult,
@@ -154,7 +155,14 @@ from .const import (
 from .logic.auto_arm import MODE_PERSONS, PRESENCE_MODES, UNKNOWN_PRESENCE
 from .logic.code import hash_code, valid_code
 from .logic.misc import WEEKDAYS
-from .logic.state_machine import SENSOR_TYPES, TYPE_WINDOW, type_defaults
+from .logic.state_machine import (
+    SENSOR_TYPES,
+    TYPE_DOOR,
+    TYPE_MOTION,
+    TYPE_OTHER,
+    TYPE_WINDOW,
+    type_defaults,
+)
 from .validation import duplicate_sensor, wifi_sensors_of
 
 CONF_NEW_CODE = "new_code"
@@ -167,6 +175,17 @@ SECTION_KIDS = "kids"
 SECTION_HINT = "hint"
 SECTION_OFF = "switch_off"
 CALL_LANGUAGES = ["auto", "de", "en"]
+CONF_SENSORS = "sensors"
+# binary sensor device classes offered at the setup and the sensor type they get
+SENSOR_DEVICE_CLASSES = {
+    "door": TYPE_DOOR,
+    "garage_door": TYPE_DOOR,
+    "window": TYPE_WINDOW,
+    "opening": TYPE_OTHER,
+    "motion": TYPE_MOTION,
+    "occupancy": TYPE_MOTION,
+    "presence": TYPE_MOTION,
+}
 # audio streams of the Android companion app for spoken notifications
 TTS_STREAMS = ["alarm_stream_max", "alarm_stream", "music_stream", "notification_stream"]
 
@@ -556,10 +575,12 @@ class AlarmConfigFlow(ConfigFlow, domain=DOMAIN):
             if code and (error := _code_error(code, confirm)):
                 errors[CONF_CODE] = error
             else:
-                options = {**DEFAULTS, **self._options, **data}
+                self._options.update(data)
                 if code:
-                    options[CONF_CODE] = await self.hass.async_add_executor_job(hash_code, code)
-                return self.async_create_entry(title=NAME, data={}, options=options)
+                    self._options[CONF_CODE] = await self.hass.async_add_executor_job(
+                        hash_code, code
+                    )
+                return await self.async_step_sensors()
         values = {**DEFAULTS, **_clean(user_input or {})}
         schema = vol.Schema(
             {
@@ -569,6 +590,45 @@ class AlarmConfigFlow(ConfigFlow, domain=DOMAIN):
             }
         )
         return self.async_show_form(step_id="alarm", data_schema=schema, errors=errors)
+
+    async def async_step_sensors(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Optional: take over existing contacts and motion sensors as sensor sub items."""
+        if user_input is not None:
+            subentries = [
+                ConfigSubentryData(
+                    data={CONF_ENTITY: entity_id, CONF_TYPE: self._sensor_type(entity_id)},
+                    subentry_type=SUBENTRY_SENSOR,
+                    title=self._entity_name(entity_id),
+                    unique_id=None,
+                )
+                for entity_id in dict.fromkeys(user_input.get(CONF_SENSORS) or [])
+            ]
+            return self.async_create_entry(
+                title=NAME, data={}, options={**DEFAULTS, **self._options}, subentries=subentries
+            )
+        schema = vol.Schema(
+            {
+                vol.Optional(CONF_SENSORS, default=[]): EntitySelector(
+                    EntitySelectorConfig(
+                        domain="binary_sensor",
+                        device_class=list(SENSOR_DEVICE_CLASSES),
+                        multiple=True,
+                    )
+                )
+            }
+        )
+        return self.async_show_form(step_id="sensors", data_schema=schema)
+
+    def _entity_name(self, entity_id: str) -> str:
+        state = self.hass.states.get(entity_id)
+        return state.name if state else entity_id
+
+    def _sensor_type(self, entity_id: str) -> str:
+        state = self.hass.states.get(entity_id)
+        device_class = state.attributes.get("device_class") if state else None
+        return SENSOR_DEVICE_CLASSES.get(str(device_class), TYPE_OTHER)
 
 
 # ---------------------------------------------------------------- options flow

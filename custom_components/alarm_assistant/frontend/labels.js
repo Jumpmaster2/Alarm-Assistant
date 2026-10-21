@@ -58,6 +58,10 @@ export const LABELS = {
    "Wartezeit vor der Meldung",
    "Kurze Aussetzer innerhalb dieser Zeit werden nicht gemeldet. 0 = sofort melden."
   ],
+  "sensors": [
+   "Sensoren",
+   "Angeboten werden nur Binärsensoren mit der Geräteklasse Tür, Garagentor, Fenster, Öffnung, Bewegung, Belegung oder Anwesenheit. Leer = Sensoren später anlegen."
+  ],
   "new_code": [
    "Neuer Code",
    "4 bis 10 Ziffern. Leer lassen, um den bisherigen Code zu behalten."
@@ -479,6 +483,10 @@ export const LABELS = {
   "unavailable_delay": [
    "Delay before the report",
    "Short drop-outs within this time are not reported. 0 = report at once."
+  ],
+  "sensors": [
+   "Sensors",
+   "Only binary sensors with the device class door, garage door, window, opening, motion, occupancy or presence are offered. Empty = add sensors later."
   ],
   "new_code": [
    "New code",

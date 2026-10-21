@@ -43,6 +43,16 @@
           "code_arm_required": "Off: arming works without the code, only disarming needs it.",
           "code_confirm": "Enter the same code again."
         }
+      },
+      "sensors": {
+        "title": "Sensors",
+        "description": "Optional: choose the door, window and motion sensors of the alarm. Each one becomes a sensor sub item with a type that fits its device class (door = delayed, window = immediate, motion). You can change, add or delete sensors at any time.",
+        "data": {
+          "sensors": "Sensors"
+        },
+        "data_description": {
+          "sensors": "Only binary sensors with the device class door, garage door, window, opening, motion, occupancy or presence are offered. Empty = add sensors later."
+        }
       }
     },
     "abort": {
