@@ -366,6 +366,8 @@ const SETTINGS = {
         ["exit_delay", "number", { unit: "s", min: 0, max: 600 }],
         ["trigger_time", "number", { unit: "s", min: 0, max: 7200 }],
         ["disarm_after_trigger", "bool"],
+        ["notify_unavailable", "bool"],
+        ["unavailable_delay", "number", { unit: "s", min: 0, max: 3600 }],
       ],
     },
     { id: "code", icon: "mdi:dialpad", special: "code" },

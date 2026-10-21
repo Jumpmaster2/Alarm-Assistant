@@ -97,6 +97,7 @@ from .const import (
     CONF_NOTIFY_ADMIN,
     CONF_NOTIFY_ALARM,
     CONF_NOTIFY_SUPPRESSED,
+    CONF_NOTIFY_UNAVAILABLE,
     CONF_ONLY_UNAVAILABLE,
     CONF_PERSON_COUNT,
     CONF_PERSON_IMAGE,
@@ -124,6 +125,7 @@ from .const import (
     CONF_TRIGGER_TIME,
     CONF_TURN_ON,
     CONF_TYPE,
+    CONF_UNAVAILABLE_DELAY,
     CONF_USE_ENTRY,
     CONF_USE_EXIT,
     CONF_VACUUM,
@@ -283,6 +285,8 @@ def _alarm_fields(v: dict[str, Any]) -> dict[Any, Any]:
         _req(CONF_DISARM_AFTER_TRIGGER, v): BooleanSelector(),
         _req(CONF_CODE_ARM, v): BooleanSelector(),
         _list(CONF_ARM_ON_ENTITIES, v): _entity(None, True),
+        _req(CONF_NOTIFY_UNAVAILABLE, v): BooleanSelector(),
+        _req(CONF_UNAVAILABLE_DELAY, v): _number(CONF_UNAVAILABLE_DELAY),
     }
 
 

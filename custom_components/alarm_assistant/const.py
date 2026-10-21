@@ -42,6 +42,8 @@ CONF_DISARM_AFTER_TRIGGER = "disarm_after_trigger"
 CONF_CODE = "code"
 CONF_CODE_ARM = "code_arm_required"
 CONF_ARM_ON_ENTITIES = "armed_on_entities"
+CONF_NOTIFY_UNAVAILABLE = "notify_unavailable"
+CONF_UNAVAILABLE_DELAY = "unavailable_delay"
 
 # ---------- motion
 CONF_VACUUM = "vacuum"
@@ -125,6 +127,8 @@ DEFAULTS: Final[dict[str, object]] = {
     CONF_DISARM_AFTER_TRIGGER: False,
     CONF_CODE_ARM: False,
     CONF_ARM_ON_ENTITIES: [],
+    CONF_NOTIFY_UNAVAILABLE: True,
+    CONF_UNAVAILABLE_DELAY: 60,
     CONF_DOCK_GRACE: 120,
     CONF_NOTIFY_SUPPRESSED: True,
     CONF_ANNOUNCE_ENTITIES: [],
@@ -247,6 +251,7 @@ RANGES: Final[dict[str, tuple[float, float, float, str | None]]] = {
     CONF_ENTRY_DELAY: (0, 600, 1, "s"),
     CONF_EXIT_DELAY: (0, 600, 1, "s"),
     CONF_TRIGGER_TIME: (0, 7200, 1, "s"),
+    CONF_UNAVAILABLE_DELAY: (0, 3600, 1, "s"),
     CONF_DOCK_GRACE: (0, 1800, 1, "s"),
     CONF_ALARM_VOLUME: (0, 1, 0.01, None),
     CONF_RESET_VOLUME: (0, 1, 0.01, None),

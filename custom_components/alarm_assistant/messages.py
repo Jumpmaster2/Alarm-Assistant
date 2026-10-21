@@ -75,6 +75,13 @@ _TEXTS: dict[str, dict[str, str]] = {
         "de": "Achtung. Bewegung in der Garage erkannt.",
         "en": "Attention. Motion detected in the garage.",
     },
+    "title_unavailable": {"de": "Sensor nicht verfügbar", "en": "Sensor unavailable"},
+    "push_unavailable": {
+        "de": "{sensor} ist nicht verfügbar, während die Alarmanlage scharf ist. "
+        "Bitte Batterie und Verbindung prüfen.",
+        "en": "{sensor} is unavailable while the alarm is armed. "
+        "Please check its battery and connection.",
+    },
     "title_wrong_code": {"de": "Falscher Code", "en": "Wrong code"},
     "push_wrong_code": {
         "de": "An der Alarmzentrale wurde {count}-mal hintereinander ein falscher Code eingegeben.",
@@ -155,6 +162,10 @@ _TEXTS: dict[str, dict[str, str]] = {
     "log_garage_armed": {"de": "Garage scharf geschaltet", "en": "Garage armed"},
     "log_garage_disarmed": {"de": "Garage unscharf geschaltet", "en": "Garage disarmed"},
     "log_cover": {"de": "{name}: Rollo auf {position} %", "en": "{name}: cover to {position} %"},
+    "log_unavailable": {
+        "de": "Nicht verfügbar, während scharf: {sensor}",
+        "en": "Unavailable while armed: {sensor}",
+    },
     "log_wrong_code": {
         "de": "{count}-mal falscher Code eingegeben",
         "en": "Wrong code entered {count} times",

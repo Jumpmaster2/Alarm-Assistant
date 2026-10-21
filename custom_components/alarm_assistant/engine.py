@@ -100,6 +100,7 @@ from .const import (
     CONF_NOTIFY_ADMIN,
     CONF_NOTIFY_ALARM,
     CONF_NOTIFY_SUPPRESSED,
+    CONF_NOTIFY_UNAVAILABLE,
     CONF_ONLY_UNAVAILABLE,
     CONF_PERSON_COUNT,
     CONF_PERSON_IMAGE,
@@ -127,6 +128,7 @@ from .const import (
     CONF_TRIGGER_TIME,
     CONF_TURN_ON,
     CONF_TYPE,
+    CONF_UNAVAILABLE_DELAY,
     CONF_USE_ENTRY,
     CONF_USE_EXIT,
     CONF_VACUUM,
@@ -283,6 +285,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         self.test: set[str] | None = None
         self.test_last: list[str] = []
         self.wrong_codes = 0
+        # sensors reported as unavailable while armed (reported once until back)
+        self.unavailable_reported: set[str] = set()
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}"
         )
@@ -421,6 +425,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         """Home Assistant runs: check entities, start the time based parts."""
         self._check_missing()
         now = dt_util.utcnow()
+        self._check_unavailable(now)
         self._auto_arm_check(now)
         for camera in self.cameras.values():
             self._apply_frigate(camera)
@@ -788,7 +793,35 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         if motion != self.motion_active:
             self.motion_active = motion
             self._auto_arm_check(now)
+        self._check_unavailable(now)
         self._changed()
+
+    def _check_unavailable(self, now: datetime) -> None:
+        """Report sensors that are gone while armed (battery, radio, sabotage)."""
+        watch = self.state in sm.ARMED_STATES and bool(self.opt(CONF_NOTIFY_UNAVAILABLE))
+        delay = timedelta(seconds=float(self.opt(CONF_UNAVAILABLE_DELAY)))
+        for sensor in self.sensors.values():
+            key = f"unavailable_{sensor.sensor_id}"
+            if not watch or self._value(sensor.conf.entity_id) not in (None, *INVALID):
+                self._cancel(key)
+                self.unavailable_reported.discard(sensor.sensor_id)
+                continue
+            if sensor.sensor_id in self.unavailable_reported or key in self._timers:
+                continue
+            self._schedule(key, now + delay, lambda _t, s=sensor: self._report_unavailable(s))
+
+    def _report_unavailable(self, sensor: Sensor) -> None:
+        if self.state not in sm.ARMED_STATES:
+            return
+        if self._value(sensor.conf.entity_id) not in (None, *INVALID):
+            return
+        self.unavailable_reported.add(sensor.sensor_id)
+        self._log("log_unavailable", sensor=sensor.conf.name)
+        self._notify(
+            self._push(CONF_NOTIFY),
+            self._mark(self.t("title_unavailable")),
+            self._mark(self.t("push_unavailable", sensor=sensor.conf.name)),
+        )
 
     def _raw_motion(self, entity_id: str) -> None:
         """A motion sensor reported motion (before filtering)."""
@@ -944,6 +977,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         else:
             self._armed(automatic)
         self._camera_rules_changed()
+        self._check_unavailable(now)
         self._changed()
         return check
 
@@ -1071,6 +1105,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             self._camera_task(camera, "privacy", self._async_camera_disarmed(camera))
         self.test = None
         self._camera_rules_changed()
+        self._check_unavailable(self.disarmed_since)
         self._schedule(
             "auto_arm_retry",
             self.disarmed_since + timedelta(minutes=float(self.opt(CONF_RETRY))),

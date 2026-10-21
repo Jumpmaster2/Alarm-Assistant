@@ -27,7 +27,9 @@
           "code_arm_required": "Code also for arming",
           "armed_on_entities": "On while armed",
           "code": "Code (optional)",
-          "code_confirm": "Repeat code"
+          "code_confirm": "Repeat code",
+          "notify_unavailable": "Report unavailable sensors",
+          "unavailable_delay": "Delay before the report"
         },
         "data_description": {
           "entry_delay": "Time to disarm after a delayed sensor (door, motion) tripped.",
@@ -35,7 +37,9 @@
           "trigger_time": "How long the alarm stays triggered.",
           "disarm_after_trigger": "Off: armed again afterwards.",
           "armed_on_entities": "Turned on when armed, off when disarmed (e.g. camera motion detection).",
-          "code": "4 to 10 digits. Needed to disarm. Leave empty for no code."
+          "code": "4 to 10 digits. Needed to disarm. Leave empty for no code.",
+          "notify_unavailable": "Push when a sensor is unavailable while armed (empty battery, radio problem, sabotage).",
+          "unavailable_delay": "Short drop-outs within this time are not reported. 0 = report at once."
         }
       }
     },
@@ -89,7 +93,9 @@
           "armed_on_entities": "On while armed",
           "new_code": "New code",
           "remove_code": "Remove code",
-          "code_confirm": "Repeat code"
+          "code_confirm": "Repeat code",
+          "notify_unavailable": "Report unavailable sensors",
+          "unavailable_delay": "Delay before the report"
         },
         "data_description": {
           "entry_delay": "Time to disarm after a delayed sensor (door, motion) tripped.",
@@ -97,7 +103,9 @@
           "trigger_time": "How long the alarm stays triggered.",
           "disarm_after_trigger": "Off: armed again afterwards.",
           "armed_on_entities": "Turned on when armed, off when disarmed (e.g. camera motion detection).",
-          "new_code": "4 to 10 digits. Leave empty to keep the current code."
+          "new_code": "4 to 10 digits. Leave empty to keep the current code.",
+          "notify_unavailable": "Push when a sensor is unavailable while armed (empty battery, radio problem, sabotage).",
+          "unavailable_delay": "Short drop-outs within this time are not reported. 0 = report at once."
         },
         "description": "Code set: {code}"
       },

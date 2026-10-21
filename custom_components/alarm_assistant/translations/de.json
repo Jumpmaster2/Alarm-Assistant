@@ -27,7 +27,9 @@
           "code_arm_required": "Code auch zum Scharfschalten",
           "armed_on_entities": "An, solange scharf",
           "code": "Code (optional)",
-          "code_confirm": "Code wiederholen"
+          "code_confirm": "Code wiederholen",
+          "notify_unavailable": "Ausgefallene Sensoren melden",
+          "unavailable_delay": "Wartezeit vor der Meldung"
         },
         "data_description": {
           "entry_delay": "Zeit zum Entschärfen, nachdem ein verzögerter Sensor (Tür, Bewegung) ausgelöst hat.",
@@ -35,7 +37,9 @@
           "trigger_time": "Wie lange der Alarm ausgelöst bleibt.",
           "disarm_after_trigger": "Aus: danach wieder scharf.",
           "armed_on_entities": "Beim Scharfschalten an, beim Unscharfschalten aus (z. B. Bewegungserkennung von Kameras).",
-          "code": "4 bis 10 Ziffern. Zum Unscharfschalten nötig. Leer = kein Code."
+          "code": "4 bis 10 Ziffern. Zum Unscharfschalten nötig. Leer = kein Code.",
+          "notify_unavailable": "Push, wenn ein Sensor nicht verfügbar ist, während die Anlage scharf ist (leere Batterie, Funkproblem, Sabotage).",
+          "unavailable_delay": "Kurze Aussetzer innerhalb dieser Zeit werden nicht gemeldet. 0 = sofort melden."
         }
       }
     },
@@ -89,7 +93,9 @@
           "armed_on_entities": "An, solange scharf",
           "new_code": "Neuer Code",
           "remove_code": "Code entfernen",
-          "code_confirm": "Code wiederholen"
+          "code_confirm": "Code wiederholen",
+          "notify_unavailable": "Ausgefallene Sensoren melden",
+          "unavailable_delay": "Wartezeit vor der Meldung"
         },
         "data_description": {
           "entry_delay": "Zeit zum Entschärfen, nachdem ein verzögerter Sensor (Tür, Bewegung) ausgelöst hat.",
@@ -97,7 +103,9 @@
           "trigger_time": "Wie lange der Alarm ausgelöst bleibt.",
           "disarm_after_trigger": "Aus: danach wieder scharf.",
           "armed_on_entities": "Beim Scharfschalten an, beim Unscharfschalten aus (z. B. Bewegungserkennung von Kameras).",
-          "new_code": "4 bis 10 Ziffern. Leer lassen, um den bisherigen Code zu behalten."
+          "new_code": "4 bis 10 Ziffern. Leer lassen, um den bisherigen Code zu behalten.",
+          "notify_unavailable": "Push, wenn ein Sensor nicht verfügbar ist, während die Anlage scharf ist (leere Batterie, Funkproblem, Sabotage).",
+          "unavailable_delay": "Kurze Aussetzer innerhalb dieser Zeit werden nicht gemeldet. 0 = sofort melden."
         },
         "description": "Code gesetzt: {code}"
       },

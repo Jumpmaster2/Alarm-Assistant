@@ -16,7 +16,7 @@ The integration is event driven: it only reacts to state changes of the configur
 * Optional code (for disarming, optionally also for arming). The code has 4 to 10 digits; only a salted hash (PBKDF2) is stored. Codes of older versions keep working and are converted at the next correct disarming. Every 5 wrong entries in a row a message is sent.
 * **Sensors** are added one by one (sub item "Sensor"): door (delayed), window (immediate), motion (delayed, may be active at arming) or other. Every property can be changed per sensor.
 * **Open windows** are ignored from arming until disarming, a notification lists them. An open door prevents arming (with a notification), except during an exit delay.
-* A sensor that becomes unavailable does not trigger. If it was closed before and comes back open, it triggers.
+* A sensor that becomes unavailable does not trigger. If it was closed before and comes back open, it triggers. If a sensor is unavailable while armed for longer than the configured delay (default 60 s), a push message is sent (can be switched off).
 * **Conditional contacts:** a sensor can count only while another entity is unavailable, e.g. a balcony door that is open for the hose of a portable air conditioner. If it is open at arming and does not count, a cover can move to a position.
 * After a restart an armed panel stays armed. A running alarm is not repeated.
 

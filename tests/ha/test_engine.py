@@ -778,3 +778,29 @@ async def test_jammed_lock_warns_and_retries(
     assert any("retried" in c.data["message"] for c in calls["notify"])
     await advance(hass, freezer, 11)
     assert len(calls["lock"]) == 2
+
+
+async def test_unavailable_sensor_is_reported_while_armed(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory
+) -> None:
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry())
+    # disarmed: nothing is reported
+    await set_state(hass, DOOR, "unavailable")
+    await advance(hass, freezer, 120)
+    assert not any(c.data["title"] == "Sensor unavailable" for c in calls["notify"])
+    await set_state(hass, DOOR, "off")
+    await _arm(hass)
+    # a short drop-out is not reported
+    await set_state(hass, WINDOW, "unavailable")
+    await advance(hass, freezer, 30)
+    await set_state(hass, WINDOW, "off")
+    await advance(hass, freezer, 60)
+    assert not any(c.data["title"] == "Sensor unavailable" for c in calls["notify"])
+    # gone for longer: reported once
+    await set_state(hass, WINDOW, "unavailable")
+    await advance(hass, freezer, 180)
+    reports = [c for c in calls["notify"] if c.data["title"] == "Sensor unavailable"]
+    assert len(reports) == 1
+    assert "Kitchen window" in reports[0].data["message"]
+    assert _state(hass) == "armed_away"
