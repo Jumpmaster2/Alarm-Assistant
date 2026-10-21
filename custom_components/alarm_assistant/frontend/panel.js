@@ -2,7 +2,8 @@
 // Plain web component without build step; uses only the hass object and the
 // WebSocket commands of the integration.
 
-import { LABELS } from "./labels.js";
+// labels.js gets the same version as this module, so a browser cache never mixes versions
+const { LABELS } = await import(new URL(`./labels.js${new URL(import.meta.url).search}`, import.meta.url));
 
 const UI = {
   de: {
@@ -42,6 +43,7 @@ const UI = {
     save: "Speichern",
     saved: "Gespeichert",
     cancel: "Abbrechen",
+    ok: "OK",
     delete: "Löschen",
     back: "Zurück",
     add: "Hinzufügen",
@@ -202,6 +204,7 @@ const UI = {
     save: "Save",
     saved: "Saved",
     cancel: "Cancel",
+    ok: "OK",
     delete: "Delete",
     back: "Back",
     add: "Add",
@@ -1440,7 +1443,7 @@ class AlarmAssistantPanel extends HTMLElement {
     const data = { entity_id: panelId };
     const needCode = attrs.code_format && (action === "disarm" || attrs.code_arm_required);
     if (needCode) {
-      const code = prompt(this.ui.enterCode);
+      const code = await this._askCode();
       if (code === null) return;
       data.code = code;
     }
@@ -1449,6 +1452,33 @@ class AlarmAssistantPanel extends HTMLElement {
     } catch (err) {
       this._toast(err.message || String(err), true);
     }
+  }
+
+  _askCode() {
+    // own dialog: the code is masked (prompt() shows it in plain text)
+    return new Promise((resolve) => {
+      const ui = this.ui;
+      const overlay = document.createElement("div");
+      overlay.className = "overlay";
+      overlay.innerHTML = `<form class="card dialog">
+        <h2><ha-icon icon="mdi:dialpad"></ha-icon>${esc(ui.enterCode)}</h2>
+        <input type="password" inputmode="numeric" autocomplete="off" name="code">
+        <div class="actions"><button type="button" class="btn" data-dialog="cancel">${esc(ui.cancel)}</button>
+          <button type="submit" class="btn primary">${esc(ui.ok)}</button></div></form>`;
+      const done = (value) => {
+        overlay.remove();
+        resolve(value);
+      };
+      const form = overlay.querySelector("form");
+      form.addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        done(form.elements.code.value);
+      });
+      overlay.querySelector("[data-dialog=cancel]").addEventListener("click", () => done(null));
+      overlay.addEventListener("keydown", (ev) => ev.key === "Escape" && done(null));
+      this.shadowRoot.appendChild(overlay);
+      form.elements.code.focus();
+    });
   }
 
   async _saveCard(cardId, button) {
@@ -1633,6 +1663,8 @@ summary { cursor:pointer; font-weight:500; color:var(--primary-color); }
 .test-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-top:8px; }
 .test-running { border-color:var(--warning-color, #ffa600); margin-bottom:16px; display:flex; flex-direction:column; gap:12px; }
 .badge.test { background:var(--warning-color, #ffa600); color:#000; border:none; font-size:12px; vertical-align:middle; }
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; z-index:20; padding:16px; }
+.dialog { width:100%; max-width:320px; display:flex; flex-direction:column; gap:12px; }
 .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--primary-text-color); color:var(--primary-background-color); padding:10px 18px; border-radius:8px; z-index:10; }
 .toast.bad { background:var(--error-color, #db4437); color:#fff; }
 @media (max-width: 700px) {

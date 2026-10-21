@@ -14,7 +14,6 @@ from datetime import datetime, time, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import (
     CALLBACK_TYPE,
     Event,
@@ -159,12 +158,11 @@ from .logic import state_machine as sm
 from .logic.call import CallSettings, dial_input, plan
 from .logic.code import hash_code, is_legacy, verify_code
 from .logic.misc import anyone_connected, join_names, next_daily, tag_action
-from .logic.sensors import contact_counts, effective_state, motion_suppressed
+from .logic.sensors import INVALID, contact_counts, effective_state, motion_suppressed
 from .messages import resolve_language, text
 
 type AlarmConfigEntry = ConfigEntry[AlarmEngine]
 
-INVALID = (STATE_UNAVAILABLE, STATE_UNKNOWN)
 UNLOCKED_STATES = ("unlocked", "open", "opening")
 STATE_JAMMED = "jammed"
 # A lock that falls back to "unlocked" this soon after we locked it did not
@@ -303,6 +301,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         self._unsubs: list[CALLBACK_TYPE] = []
         self._timers: dict[str, CALLBACK_TYPE] = {}
         self._tasks: dict[str, asyncio.Task] = {}
+        self._opts: dict[str, Any] = {**DEFAULTS, **entry.options}
         self._build()
         self._loaded = self._config_snapshot()
 
@@ -310,7 +309,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
 
     @property
     def opts(self) -> dict[str, Any]:
-        return {**DEFAULTS, **self.config_entry.options}
+        """Options with defaults (the entry is reloaded when they change, except the code)."""
+        return self._opts
 
     def opt(self, key: str) -> Any:
         return self.opts.get(key, DEFAULTS.get(key))
@@ -327,7 +327,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
 
     @property
     def code_required(self) -> bool:
-        return bool(self.opt(CONF_CODE))
+        return bool(self.config_entry.options.get(CONF_CODE))
 
     @property
     def code_arm_required(self) -> bool:
@@ -800,6 +800,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
             self._schedule_dock_grace()
         new = event.data["new_state"]
         old = event.data["old_state"]
+        if old is not None and new is not None and old.state == new.state:
+            return  # only attributes changed (e.g. battery of the vacuum)
         if (
             new is not None
             and new.state == sm.ON
@@ -894,7 +896,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     async def async_check_code(self, code: str | None, arming: bool) -> bool:
         if not self.code_required or (arming and not self.code_arm_required):
             return True
-        stored = str(self.opt(CONF_CODE))
+        stored = str(self.config_entry.options.get(CONF_CODE))
         if code is None or not await self.hass.async_add_executor_job(
             verify_code, str(code), stored
         ):
@@ -1075,7 +1077,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         door = self.opt(CONF_LOCK_DOOR)
         if door and self._value(door) != sm.OFF:
             return
-        if self._value(lock) in ("locked", "locking", STATE_UNAVAILABLE, STATE_UNKNOWN, None):
+        if self._value(lock) in ("locked", "locking", *INVALID, None):
             return
         self._log("log_locked")
         self.lock_sent = dt_util.utcnow()
@@ -1706,15 +1708,18 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                 restart=True,
             )
 
-    def _frigate_switches(self, camera: Camera) -> list[str]:
+    def _frigate_lists(self, camera: Camera) -> tuple[list[str], list[str]]:
+        """Recording and detection switches of the camera."""
         record = [str(e) for e in camera.conf.get(CONF_RECORD_SWITCHES) or []]
         detect = [str(e) for e in camera.conf.get(CONF_DETECT_SWITCHES) or []]
+        return record, detect
+
+    def _frigate_switches(self, camera: Camera) -> list[str]:
+        record, detect = self._frigate_lists(camera)
         return record + detect
 
     def _frigate_split(self, camera: Camera, mode: str) -> tuple[list[str], list[str]]:
-        record = [str(e) for e in camera.conf.get(CONF_RECORD_SWITCHES) or []]
-        detect = [str(e) for e in camera.conf.get(CONF_DETECT_SWITCHES) or []]
-        return cam.frigate_split(mode, record, detect)
+        return cam.frigate_split(mode, *self._frigate_lists(camera))
 
     def _frigate_deviates(self, camera: Camera) -> bool:
         """A loaded switch of the camera is not in the state the rules want."""
