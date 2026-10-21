@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import voluptuous as vol
@@ -24,6 +25,7 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -149,7 +151,7 @@ from .const import (
     SUBENTRY_PERSON,
     SUBENTRY_SENSOR,
 )
-from .logic.auto_arm import PRESENCE_MODES, UNKNOWN_PRESENCE
+from .logic.auto_arm import MODE_PERSONS, PRESENCE_MODES, UNKNOWN_PRESENCE
 from .logic.code import hash_code, valid_code
 from .logic.misc import WEEKDAYS
 from .logic.state_machine import SENSOR_TYPES, TYPE_WINDOW, type_defaults
@@ -352,10 +354,52 @@ def _reactions_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
     )
 
 
-def _call_schema(v: dict[str, Any]) -> vol.Schema:
+def _suggestions(options: list[str] | list[SelectOptionDict], multiple: bool) -> SelectSelector:
+    """Free text with suggestions."""
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=options, multiple=multiple, custom_value=True, mode=SelectSelectorMode.DROPDOWN
+        )
+    )
+
+
+def _sip_addons(hass: HomeAssistant) -> list[str]:
+    """Slugs of installed add-ons that look like ha-sip (empty without Supervisor)."""
+    if "hassio" not in hass.config.components:
+        return []
+    try:
+        from homeassistant.components.hassio import get_addons_info
+
+        addons = get_addons_info(hass) or {}
+    except Exception:
+        return []
+    return sorted(slug for slug in addons if "sip" in slug.lower())
+
+
+def _tags(hass: HomeAssistant) -> list[SelectOptionDict]:
+    """NFC tags known to Home Assistant."""
+    return [
+        SelectOptionDict(value=str(state.attributes["tag_id"]), label=state.name)
+        for state in hass.states.async_all("tag")
+        if state.attributes.get("tag_id")
+    ]
+
+
+def _networks_seen(hass: HomeAssistant, sensors: list[str]) -> list[str]:
+    """Networks the Wi-Fi sensors report right now (suggestions for home networks)."""
+    seen = {
+        state.state
+        for entity_id in sensors
+        if (state := hass.states.get(entity_id)) is not None
+        and state.state not in ("unavailable", "unknown", "<not connected>", "")
+    }
+    return sorted(seen)
+
+
+def _call_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
     return vol.Schema(
         {
-            _opt(CONF_CALL_ADDON, v): TextSelector(),
+            _opt(CONF_CALL_ADDON, v): _suggestions(_sip_addons(hass), False),
             _list(CONF_CALL_TARGETS, v): _free_list(),
             _req(CONF_CALL_ACK, v): BooleanSelector(),
             _req(CONF_CALL_WAIT, v): _number(CONF_CALL_WAIT),
@@ -373,12 +417,12 @@ def _call_schema(v: dict[str, Any]) -> vol.Schema:
     )
 
 
-def _auto_arm_schema(v: dict[str, Any]) -> vol.Schema:
+def _auto_arm_schema(v: dict[str, Any], networks: list[str]) -> vol.Schema:
     return vol.Schema(
         {
             _req(CONF_PRESENCE_MODE, v): _choice(PRESENCE_MODES, "presence_mode"),
             _list(CONF_WIFI_SENSORS, v): _entity(["sensor"], True),
-            _list(CONF_HOME_NETWORKS, v): _free_list(),
+            _list(CONF_HOME_NETWORKS, v): _suggestions(networks, True),
             _list(CONF_PERSONS, v): _entity(["person"], True),
             _req(CONF_QUIET, v): _number(CONF_QUIET),
             _req(CONF_PREWARN, v): _number(CONF_PREWARN),
@@ -404,7 +448,7 @@ def _night_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
     return vol.Schema(
         {
             _opt(CONF_NIGHT_DOOR, v): _entity(["binary_sensor"]),
-            _opt(CONF_NIGHT_TAG, v): TextSelector(),
+            _opt(CONF_NIGHT_TAG, v): _suggestions(_tags(hass), False),
             _list(CONF_NIGHT_TURN_ON, v): _entity(None, True),
             _list(CONF_NIGHT_VOLUME_PLAYERS, v): _entity(["media_player"], True),
             _list(CONF_NIGHT_SIRENS, v): _entity(["siren"], True),
@@ -424,7 +468,7 @@ def _night_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
                         _req(CONF_NIGHT_OFF_VOLUME, v): _number(CONF_NIGHT_OFF_VOLUME),
                     }
                 ),
-                {"collapsed": False},
+                {"collapsed": True},
             ),
         }
     )
@@ -451,7 +495,7 @@ def _extras_schema(v: dict[str, Any]) -> vol.Schema:
                         _req(CONF_HINT_DURATION, v): _number(CONF_HINT_DURATION),
                     }
                 ),
-                {"collapsed": False},
+                {"collapsed": True},
             ),
         }
     )
@@ -546,23 +590,33 @@ class AlarmOptionsFlow(OptionsFlow):
         return self.async_create_entry(data=options)
 
     async def _form(
-        self, step_id: str, schema: vol.Schema, user_input: dict[str, Any] | None
+        self,
+        step_id: str,
+        schema: Callable[[dict[str, Any]], vol.Schema],
+        user_input: dict[str, Any] | None,
+        check: Callable[[dict[str, Any]], dict[str, str]] | None = None,
     ) -> ConfigFlowResult:
+        """Show the form, check the input and save it (shown again with errors)."""
+        errors: dict[str, str] = {}
+        values = self._values
         if user_input is not None:
-            return self._save(schema, user_input)
-        return self.async_show_form(step_id=step_id, data_schema=schema)
+            flat = _clean(_flatten(user_input, SECTIONS))
+            if not (errors := check(flat) if check else {}):
+                return self._save(schema(values), user_input)
+            values = {**DEFAULTS, **flat}
+        return self.async_show_form(step_id=step_id, data_schema=schema(values), errors=errors)
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return self.async_show_menu(
             step_id="init",
             menu_options=[
-                "general",
                 "alarm",
-                "motion",
+                "general",
                 "reactions",
-                "call",
                 "auto_arm",
                 "lock",
+                "call",
+                "motion",
                 "night_door",
                 "extras",
             ],
@@ -571,7 +625,7 @@ class AlarmOptionsFlow(OptionsFlow):
     async def async_step_general(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        return await self._form("general", _general_schema(self.hass, self._values), user_input)
+        return await self._form("general", lambda v: _general_schema(self.hass, v), user_input)
 
     async def async_step_alarm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -609,31 +663,68 @@ class AlarmOptionsFlow(OptionsFlow):
         )
 
     async def async_step_motion(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return await self._form("motion", _motion_schema(self.hass, self._values), user_input)
+        return await self._form("motion", lambda v: _motion_schema(self.hass, v), user_input)
 
     async def async_step_reactions(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        return await self._form("reactions", _reactions_schema(self.hass, self._values), user_input)
+        return await self._form("reactions", lambda v: _reactions_schema(self.hass, v), user_input)
 
     async def async_step_call(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return await self._form("call", _call_schema(self._values), user_input)
+        return await self._form(
+            "call", lambda v: _call_schema(self.hass, v), user_input, self._check_call
+        )
 
     async def async_step_auto_arm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        return await self._form("auto_arm", _auto_arm_schema(self._values), user_input)
+        networks = _networks_seen(self.hass, wifi_sensors_of(self.config_entry))
+        return await self._form(
+            "auto_arm", lambda v: _auto_arm_schema(v, networks), user_input, self._check_auto_arm
+        )
 
     async def async_step_lock(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return await self._form("lock", _lock_schema(self._values), user_input)
+        return await self._form("lock", _lock_schema, user_input, _check_lock)
 
     async def async_step_night_door(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        return await self._form("night_door", _night_schema(self.hass, self._values), user_input)
+        return await self._form("night_door", lambda v: _night_schema(self.hass, v), user_input)
 
     async def async_step_extras(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return await self._form("extras", _extras_schema(self._values), user_input)
+        return await self._form("extras", _extras_schema, user_input, _check_extras)
+
+    def _check_call(self, v: dict[str, Any]) -> dict[str, str]:
+        errors: dict[str, str] = {}
+        if v.get(CONF_CALL_ADDON) and not v.get(CONF_CALL_TARGETS):
+            errors[CONF_CALL_TARGETS] = "targets_required"
+        elif v.get(CONF_CALL_TARGETS) and not v.get(CONF_CALL_ADDON):
+            errors[CONF_CALL_ADDON] = "addon_required"
+        elif v.get(CONF_CALL_ADDON) and not self.hass.services.has_service("hassio", "addon_stdin"):
+            errors[CONF_CALL_ADDON] = "supervisor_required"
+        return errors
+
+    def _check_auto_arm(self, v: dict[str, Any]) -> dict[str, str]:
+        if v.get(CONF_PRESENCE_MODE) == MODE_PERSONS:
+            return {} if v.get(CONF_PERSONS) else {CONF_PERSONS: "persons_required"}
+        has_phones = bool(v.get(CONF_WIFI_SENSORS)) or any(
+            sub.subentry_type == SUBENTRY_PERSON for sub in self.config_entry.subentries.values()
+        )
+        if has_phones and not v.get(CONF_HOME_NETWORKS):
+            return {CONF_HOME_NETWORKS: "home_networks_required"}
+        return {}
+
+
+def _check_lock(v: dict[str, Any]) -> dict[str, str]:
+    if v.get(CONF_LOCK_DOOR) and not v.get(CONF_LOCK):
+        return {CONF_LOCK: "lock_required"}
+    return {}
+
+
+def _check_extras(v: dict[str, Any]) -> dict[str, str]:
+    if v.get(CONF_HINT_DOOR) and not (v.get(CONF_HINT_ENTITY) and v.get(CONF_HINT_WINDOWS)):
+        return {"base": "hint_incomplete"}
+    return {}
 
 
 # ---------------------------------------------------------------- sensor subentry

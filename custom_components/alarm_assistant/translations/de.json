@@ -58,13 +58,13 @@
       "init": {
         "title": "Einstellungen",
         "menu_options": {
-          "general": "Benachrichtigungen",
           "alarm": "Alarmzeiten und Code",
-          "motion": "Bewegungsfilter",
+          "general": "Benachrichtigungen",
           "reactions": "Reaktionen bei Alarm",
-          "call": "Telefonanruf",
           "auto_arm": "Automatisch scharf",
           "lock": "Türschloss",
+          "call": "Telefonanruf",
+          "motion": "Bewegungsfilter",
           "night_door": "Nacht-Türalarm",
           "extras": "Kinder und Hinweise"
         }
@@ -331,7 +331,14 @@
     },
     "error": {
       "code_invalid": "Der Code muss aus 4 bis 10 Ziffern bestehen (nur Zahlen, die Alarmzentrale zeigt ein Ziffernfeld).",
-      "code_mismatch": "Die beiden Codes stimmen nicht überein. Bitte zweimal denselben Code eingeben."
+      "code_mismatch": "Die beiden Codes stimmen nicht überein. Bitte zweimal denselben Code eingeben.",
+      "targets_required": "Bitte mindestens eine Nummer zum Anrufen eintragen oder das Add-on leeren, um den Anruf abzuschalten.",
+      "addon_required": "Bitte den Slug des ha-sip-Add-ons eintragen (z. B. 1234abcd_ha-sip), sonst kann niemand angerufen werden.",
+      "supervisor_required": "Der Anruf braucht den Supervisor (Home Assistant OS oder Supervised) mit dem ha-sip-Add-on. Ohne ihn das Add-on-Feld leeren.",
+      "persons_required": "Für den Modus 'Personen' mindestens eine Person wählen oder 'WLAN der Handys' wählen.",
+      "home_networks_required": "Für 'WLAN der Handys' mindestens ein Heim-WLAN eintragen (den Namen, den der WLAN-Sensor zuhause zeigt).",
+      "lock_required": "Ein Türkontakt ist nur mit Türschloss sinnvoll: Schloss wählen oder den Türkontakt leeren.",
+      "hint_incomplete": "Fenster-offen-Hinweis: Mit Türkontakt bitte auch Fenster und Hinweis-Licht wählen (oder den Türkontakt leeren)."
     }
   },
   "config_subentries": {

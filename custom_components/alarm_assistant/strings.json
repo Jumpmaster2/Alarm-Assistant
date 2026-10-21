@@ -58,13 +58,13 @@
       "init": {
         "title": "Settings",
         "menu_options": {
-          "general": "Notifications",
           "alarm": "Alarm times and code",
-          "motion": "Motion filter",
+          "general": "Notifications",
           "reactions": "Reactions on alarm",
-          "call": "Phone call",
           "auto_arm": "Automatic arming",
           "lock": "Door lock",
+          "call": "Phone call",
+          "motion": "Motion filter",
           "night_door": "Night door alarm",
           "extras": "Children and hints"
         }
@@ -331,7 +331,14 @@
     },
     "error": {
       "code_invalid": "The code must have 4 to 10 digits (only numbers, the alarm panel shows a number pad).",
-      "code_mismatch": "The two codes do not match. Please enter the same code twice."
+      "code_mismatch": "The two codes do not match. Please enter the same code twice.",
+      "targets_required": "Please add at least one number to call, or clear the add-on to switch the call off.",
+      "addon_required": "Please enter the slug of the ha-sip add-on (e.g. 1234abcd_ha-sip), otherwise nobody can be called.",
+      "supervisor_required": "The call needs the Supervisor (Home Assistant OS or Supervised) with the ha-sip add-on. Without it, clear the add-on field.",
+      "persons_required": "For the mode 'Persons' choose at least one person, or choose 'Wi-Fi of the phones'.",
+      "home_networks_required": "For 'Wi-Fi of the phones' enter at least one home network (the name your Wi-Fi sensor shows at home).",
+      "lock_required": "A door contact only makes sense with a door lock: choose the lock or clear the door contact.",
+      "hint_incomplete": "Window open hint: with a door contact, also choose the windows and the hint light (or clear the door contact)."
     }
   },
   "config_subentries": {

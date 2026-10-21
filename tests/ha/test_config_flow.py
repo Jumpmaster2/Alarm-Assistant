@@ -313,3 +313,58 @@ async def test_sensor_subentry_rejects_duplicate(hass: HomeAssistant, base_state
         result["flow_id"], {"name": "Door", "entity": DOOR, "type": "door"}
     )
     assert result["step_id"] == "behavior"
+
+
+async def _options_errors(hass: HomeAssistant, entry, step: str, data: dict) -> dict:
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": step}
+    )
+    result = await hass.config_entries.options.async_configure(result["flow_id"], data)
+    assert result["type"] is FlowResultType.FORM
+    return result["errors"]
+
+
+CALL = {"call_acknowledge": True, "call_wait": 50, "call_language": "auto", "call_cooldown": 180}
+AUTO = {"quiet_time": 10, "prewarn_time": 5, "retry_after_disarm": 2, "presence_stable": 2}
+
+
+async def test_options_dependencies(hass: HomeAssistant, base_states, calls) -> None:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    errors = await _options_errors(
+        hass, entry, "call", {**CALL, "call_addon": "abcd_ha-sip", "call_targets": []}
+    )
+    assert errors == {"call_targets": "targets_required"}
+    errors = await _options_errors(hass, entry, "call", {**CALL, "call_targets": ["sip:1@x"]})
+    assert errors == {"call_addon": "addon_required"}
+    errors = await _options_errors(
+        hass,
+        entry,
+        "auto_arm",
+        {**AUTO, "presence_mode": "wifi", "wifi_sensors": ["sensor.phone_a_wifi"]},
+    )
+    assert errors == {"home_networks": "home_networks_required"}
+    errors = await _options_errors(hass, entry, "auto_arm", {**AUTO, "presence_mode": "persons"})
+    assert errors == {"persons": "persons_required"}
+    errors = await _options_errors(
+        hass,
+        entry,
+        "lock",
+        {"lock_door_sensor": DOOR, "disarm_on_unlock": True, "lock_on_arm": True},
+    )
+    assert errors == {"lock": "lock_required"}
+    # valid input is saved
+    await _options(
+        hass, entry, "call", {**CALL, "call_addon": "abcd_ha-sip", "call_targets": ["sip:1@x"]}
+    )
+    assert entry.options["call_targets"] == ["sip:1@x"]
+
+
+async def test_call_needs_supervisor(hass: HomeAssistant, base_states) -> None:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    errors = await _options_errors(
+        hass, entry, "call", {**CALL, "call_addon": "abcd_ha-sip", "call_targets": ["sip:1@x"]}
+    )
+    assert errors == {"call_addon": "supervisor_required"}
