@@ -23,6 +23,7 @@ from .const import (
     CONF_GARAGE_PANEL,
     CONF_GARAGE_TTS,
     CONF_GARAGE_TTS_REPEAT,
+    CONF_GARAGE_TTS_STREAM,
     CONF_GARAGE_TTS_TEXT,
     CONF_KIDS_RESET_TIME,
     CONF_LANGUAGE,
@@ -44,6 +45,7 @@ from .const import (
     CONF_UNKNOWN_PRESENCE,
     CONF_USE_ENTRY,
     CONF_USE_EXIT,
+    CONF_WIFI_SENSORS,
     DEFAULTS,
     LANGUAGE_OPTIONS,
     OPTIONAL_TEXT_KEYS,
@@ -109,6 +111,7 @@ SUBENTRY_FIELDS: dict[str, dict[str, str]] = {
         CONF_GARAGE_TTS: LIST,
         CONF_GARAGE_TTS_TEXT: TEXT,
         CONF_GARAGE_TTS_REPEAT: NUMBER,
+        CONF_GARAGE_TTS_STREAM: TEXT,
     },
 }
 
@@ -207,6 +210,17 @@ def validate_subentry(subentry_type: str, data: Mapping[str, Any]) -> dict[str, 
         else:
             result[key] = _choice(key, str(value).strip())
     return result
+
+
+def wifi_sensors_of(entry: ConfigEntry) -> list[str]:
+    """Wi-Fi sensors of the person sub items and the additional ones from the options."""
+    sensors = [
+        str(sub.data[CONF_PERSON_WIFI])
+        for sub in entry.subentries.values()
+        if sub.subentry_type == SUBENTRY_PERSON and sub.data.get(CONF_PERSON_WIFI)
+    ]
+    sensors += [str(v) for v in entry.options.get(CONF_WIFI_SENSORS) or [] if str(v).strip()]
+    return sensors
 
 
 def duplicate_sensor(entry: ConfigEntry, entity_id: str, own_id: str | None = None) -> str | None:

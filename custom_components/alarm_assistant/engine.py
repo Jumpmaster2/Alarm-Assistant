@@ -71,6 +71,7 @@ from .const import (
     CONF_GARAGE_PANEL,
     CONF_GARAGE_TTS,
     CONF_GARAGE_TTS_REPEAT,
+    CONF_GARAGE_TTS_STREAM,
     CONF_GARAGE_TTS_TEXT,
     CONF_HINT_DOOR,
     CONF_HINT_DURATION,
@@ -182,6 +183,11 @@ FRIGATE_RESYNC_MAX = 3
 FRIGATE_RESYNC_WINDOW = timedelta(minutes=10)
 # Every this many wrong codes in a row a message is sent.
 WRONG_CODE_ALERT = 5
+# Countries with an own variant of the spoken language.
+TTS_COUNTRIES = {
+    "de": ("DE", "AT", "CH", "LI", "LU", "BE"),
+    "en": ("US", "GB", "IE", "AU", "NZ", "CA", "ZA", "IN"),
+}
 # Reaction sequences of an alarm that end with disarming.
 ALARM_TASKS = ("call", "push", "siren", "announce", "announce_pending", "reactions")
 
@@ -526,7 +532,11 @@ class AlarmEngine(DataUpdateCoordinator[None]):
     def _check_missing(self) -> None:
         registry = er.async_get(self.hass)
         missing = []
-        for ref in sorted(self._configured_entities()):
+        refs = self._configured_entities()
+        if self.call_configured:
+            # the call needs the Supervisor (Home Assistant OS or Supervised)
+            refs.add("hassio.addon_stdin")
+        for ref in sorted(refs):
             domain, _, name = ref.partition(".")
             if self.hass.states.get(ref) is not None or registry.async_get(ref) is not None:
                 continue
@@ -1863,10 +1873,18 @@ class AlarmEngine(DataUpdateCoordinator[None]):
                     "TTS",
                     data={
                         "tts_text": tts,
-                        "media_stream": "alarm_stream_max",
-                        "tts_language": "de-DE" if self.language == "de" else "en-US",
+                        "media_stream": str(garage.conf.get(CONF_GARAGE_TTS_STREAM)),
+                        "tts_language": self._tts_language(),
                     },
                 )
+
+    def _tts_language(self) -> str:
+        """Language and country for spoken push messages, e.g. de-AT."""
+        country = (self.hass.config.country or "").upper()
+        lang = self.language
+        if country in TTS_COUNTRIES[lang]:
+            return f"{lang}-{country}"
+        return "de-DE" if lang == "de" else "en-US"
 
     # ------------------------------------------------------------------ diagnostics
 

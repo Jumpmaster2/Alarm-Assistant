@@ -67,6 +67,7 @@ from .const import (
     CONF_GARAGE_PANEL,
     CONF_GARAGE_TTS,
     CONF_GARAGE_TTS_REPEAT,
+    CONF_GARAGE_TTS_STREAM,
     CONF_GARAGE_TTS_TEXT,
     CONF_HINT_DOOR,
     CONF_HINT_DURATION,
@@ -152,7 +153,7 @@ from .logic.auto_arm import PRESENCE_MODES, UNKNOWN_PRESENCE
 from .logic.code import hash_code, valid_code
 from .logic.misc import WEEKDAYS
 from .logic.state_machine import SENSOR_TYPES, TYPE_WINDOW, type_defaults
-from .validation import duplicate_sensor
+from .validation import duplicate_sensor, wifi_sensors_of
 
 CONF_NEW_CODE = "new_code"
 CONF_CODE_CONFIRM = "code_confirm"
@@ -164,6 +165,8 @@ SECTION_KIDS = "kids"
 SECTION_HINT = "hint"
 SECTION_OFF = "switch_off"
 CALL_LANGUAGES = ["auto", "de", "en"]
+# audio streams of the Android companion app for spoken notifications
+TTS_STREAMS = ["alarm_stream_max", "alarm_stream", "music_stream", "notification_stream"]
 
 
 def _number(key: str) -> NumberSelector:
@@ -774,6 +777,13 @@ def _garage_schema(hass: HomeAssistant, v: dict[str, Any]) -> vol.Schema:
             _list(CONF_GARAGE_TTS, v): _services(hass),
             _opt(CONF_GARAGE_TTS_TEXT, v): TextSelector(),
             _req(CONF_GARAGE_TTS_REPEAT, v, GARAGE_DEFAULTS): _number(CONF_GARAGE_TTS_REPEAT),
+            _req(CONF_GARAGE_TTS_STREAM, v, GARAGE_DEFAULTS): SelectSelector(
+                SelectSelectorConfig(
+                    options=TTS_STREAMS,
+                    custom_value=True,
+                    mode=SelectSelectorMode.DROPDOWN,
+                )
+            ),
         }
     )
 
@@ -789,13 +799,16 @@ class _SimpleSubentryFlow(ConfigSubentryFlow):
         title = str(data.pop(CONF_NAME, "")).strip()
         return title, data
 
+    def _errors(self, title: str, data: dict[str, Any]) -> dict[str, str]:
+        """Field errors of the form (empty: valid)."""
+        return {} if title else {CONF_NAME: "name_required"}
+
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
             title, data = self._result(user_input)
-            if title:
+            if not (errors := self._errors(title, data)):
                 return self.async_create_entry(title=title, data=data)
-            errors[CONF_NAME] = "name_required"
         return self.async_show_form(
             step_id="user", data_schema=self._schema(user_input or {}), errors=errors
         )
@@ -808,11 +821,10 @@ class _SimpleSubentryFlow(ConfigSubentryFlow):
         values = {CONF_NAME: subentry.title, **subentry.data}
         if user_input is not None:
             title, data = self._result(user_input)
-            if title:
+            if not (errors := self._errors(title, data)):
                 return self.async_update_and_abort(
                     self._get_entry(), subentry, title=title, data=data
                 )
-            errors[CONF_NAME] = "name_required"
             values = user_input
         return self.async_show_form(
             step_id="reconfigure", data_schema=self._schema(values), errors=errors
@@ -831,6 +843,13 @@ class GarageSubentryFlow(_SimpleSubentryFlow):
 
     def _schema(self, values: dict[str, Any]) -> vol.Schema:
         return _garage_schema(self.hass, values)
+
+    def _errors(self, title: str, data: dict[str, Any]) -> dict[str, str]:
+        errors = super()._errors(title, data)
+        if data.get(CONF_GARAGE_NETWORKS) and not wifi_sensors_of(self._get_entry()):
+            # the garage is switched by the Wi-Fi of the phones
+            errors[CONF_GARAGE_NETWORKS] = "wifi_required"
+        return errors
 
 
 class PersonSubentryFlow(_SimpleSubentryFlow):

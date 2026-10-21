@@ -58,7 +58,8 @@ Die Integration arbeitet ereignisgesteuert: Sie reagiert nur auf Zustandswechsel
 ### Garage (Unterpunkt "Garage")
 
 * Eine zweite Alarmzentrale (z. B. Blink) wird unscharf geschaltet, solange ein Handy mit dem Garagen-WLAN verbunden ist, und eine Zeit nach dem Verlassen wieder scharf.
-* Bewegung, solange scharf: Push und gesprochene Warnung auf den Handys (Companion App).
+* Bewegung, solange scharf: Push und gesprochene Warnung auf den Handys (Companion App, gesprochen nur unter Android; der Audio-Stream ist einstellbar).
+* Die Garage braucht WLAN-Sensoren (Unterpunkt Person oder weitere WLAN-Sensoren), sonst lehnt die Einrichtung die Garagen-WLANs ab.
 * Schalter **Garage Automatik**.
 
 ### Nacht-Türalarm
@@ -92,7 +93,7 @@ Die Einstellungen lassen sich weiterhin auch über den Einrichtungsdialog änder
 * **Optionen** (Menü): Benachrichtigungen, Alarmzeiten und Code, Bewegungsfilter, Reaktionen bei Alarm, Telefonanruf, Automatisch scharf, Türschloss, Nacht-Türalarm, Kinder und Hinweise.
 * **Unterpunkte:** Sensor, Person, Kamera, Garage (beliebig viele).
 
-Eingestellte Entitäten oder Dienste, die es nicht gibt, werden nach dem Start unter Reparaturen gemeldet.
+Eingestellte Entitäten oder Dienste, die es nicht gibt, werden nach dem Start unter Reparaturen gemeldet. Dazu gehört auch der Telefonanruf ohne Supervisor (Home Assistant Container/Core haben kein `hassio.addon_stdin`).
 
 ## Entitäten
 

@@ -448,12 +448,14 @@
             "garage_motion": "Motion sensors",
             "garage_tts_services": "Spoken warning on phones",
             "garage_tts_text": "Spoken text",
-            "garage_tts_repeat": "Repeat"
+            "garage_tts_repeat": "Repeat",
+            "garage_tts_stream": "Audio stream (Android)"
           },
           "data_description": {
             "garage_networks": "Disarmed while a phone is connected (Wi-Fi sensors of the persons and the additional ones).",
-            "garage_tts_services": "Companion app notify services.",
-            "garage_tts_text": "Empty = standard text."
+            "garage_tts_services": "Notify services of the companion app (Android) that speak the warning.",
+            "garage_tts_text": "Empty = standard text.",
+            "garage_tts_stream": "Stream of the Android companion app; alarm_stream_max is loud even in silent mode. iPhones ignore this field."
           }
         },
         "reconfigure": {
@@ -466,17 +468,20 @@
             "garage_motion": "Motion sensors",
             "garage_tts_services": "Spoken warning on phones",
             "garage_tts_text": "Spoken text",
-            "garage_tts_repeat": "Repeat"
+            "garage_tts_repeat": "Repeat",
+            "garage_tts_stream": "Audio stream (Android)"
           },
           "data_description": {
             "garage_networks": "Disarmed while a phone is connected (Wi-Fi sensors of the persons and the additional ones).",
-            "garage_tts_services": "Companion app notify services.",
-            "garage_tts_text": "Empty = standard text."
+            "garage_tts_services": "Notify services of the companion app (Android) that speak the warning.",
+            "garage_tts_text": "Empty = standard text.",
+            "garage_tts_stream": "Stream of the Android companion app; alarm_stream_max is loud even in silent mode. iPhones ignore this field."
           }
         }
       },
       "error": {
-        "name_required": "Please enter a name."
+        "name_required": "Please enter a name.",
+        "wifi_required": "The garage is switched by the Wi-Fi of the phones, but no Wi-Fi sensor is set up. Add a person sub item or additional Wi-Fi sensors under Options › Automatic arming first."
       },
       "abort": {
         "reconfigure_successful": "Saved."

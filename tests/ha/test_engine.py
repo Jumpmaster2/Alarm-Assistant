@@ -623,7 +623,10 @@ async def test_garage(
     await setup_entry(hass, make_entry(extra_subentries=[GARAGE], wifi_sensors=[WIFI_A, WIFI_B]))
     await set_state(hass, "binary_sensor.garage_motion", "on")
     assert any(c.data["title"] == "Garage" for c in calls["notify"])
-    assert len([c for c in calls["notify"] if c.data["message"] == "TTS"]) == 2
+    tts = [c.data["data"] for c in calls["notify"] if c.data["message"] == "TTS"]
+    assert len(tts) == 2
+    assert tts[0]["media_stream"] == "alarm_stream_max"
+    assert tts[0]["tts_language"] == "en-US"
     await set_state(hass, WIFI_A, "GarageNet")
     assert (
         calls_of(service_events, "alarm_control_panel", "alarm_disarm")[0]["entity_id"]
@@ -648,6 +651,17 @@ async def test_missing_entities_issue(
     issue = ir.async_get(hass).async_get_issue(DOMAIN, "missing_entities")
     assert issue is not None
     assert "light.does_not_exist" in issue.translation_placeholders["entities"]
+
+
+async def test_call_without_supervisor_is_reported(
+    hass: HomeAssistant, base_states, freezer: FrozenDateTimeFactory
+) -> None:
+    """Without the Supervisor there is no hassio.addon_stdin: shown under repairs."""
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(call_addon="abcd_ha-sip", call_targets=["sip:1@x"]))
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, "missing_entities")
+    assert issue is not None
+    assert "hassio.addon_stdin" in issue.translation_placeholders["entities"]
 
 
 async def test_test_button(

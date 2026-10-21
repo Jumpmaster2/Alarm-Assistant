@@ -245,6 +245,7 @@ CONF_GARAGE_MOTION = "garage_motion"
 CONF_GARAGE_TTS = "garage_tts_services"
 CONF_GARAGE_TTS_TEXT = "garage_tts_text"
 CONF_GARAGE_TTS_REPEAT = "garage_tts_repeat"
+CONF_GARAGE_TTS_STREAM = "garage_tts_stream"
 
 GARAGE_DEFAULTS: Final[dict[str, object]] = {
     CONF_GARAGE_NETWORKS: [],
@@ -252,6 +253,7 @@ GARAGE_DEFAULTS: Final[dict[str, object]] = {
     CONF_GARAGE_MOTION: [],
     CONF_GARAGE_TTS: [],
     CONF_GARAGE_TTS_REPEAT: 2,
+    CONF_GARAGE_TTS_STREAM: "alarm_stream_max",
 }
 
 # ---------- number ranges: (min, max, step, unit), used by the flows and the panel API

@@ -15,6 +15,7 @@ from homeassistant.helpers import entity_registry as er
 from .const import (
     CONF_CODE,
     CONF_ENTITY,
+    CONF_GARAGE_NETWORKS,
     CONF_GARAGE_PANEL,
     CONF_PERSON_WIFI,
     CONF_TYPE,
@@ -27,7 +28,13 @@ from .const import (
 )
 from .logic.code import hash_code, valid_code
 from .logic.state_machine import SENSOR_TYPES
-from .validation import FieldError, coerce_option, duplicate_sensor, validate_subentry
+from .validation import (
+    FieldError,
+    coerce_option,
+    duplicate_sensor,
+    validate_subentry,
+    wifi_sensors_of,
+)
 
 DATA_WS = f"{DOMAIN}_ws_registered"
 SUBENTRY_TYPES = (SUBENTRY_SENSOR, SUBENTRY_PERSON, SUBENTRY_CAMERA, SUBENTRY_GARAGE)
@@ -180,6 +187,12 @@ def _validate_subentry(subentry_type: str, title: str, data: dict[str, Any]) -> 
     return None
 
 
+def _check_garage(entry: ConfigEntry, data: dict[str, Any]) -> str | None:
+    if data.get(CONF_GARAGE_NETWORKS) and not wifi_sensors_of(entry):
+        return f"{CONF_GARAGE_NETWORKS}:wifi_required"
+    return None
+
+
 @websocket_api.websocket_command(
     {
         vol.Required("type"): f"{DOMAIN}/save_subentry",
@@ -208,6 +221,9 @@ def ws_save_subentry(
         state = hass.states.get(str(data[CONF_ENTITY]))
         title = state.name if state else str(data[CONF_ENTITY])
     if error := _validate_subentry(msg["subentry_type"], title, data):
+        connection.send_error(msg["id"], "invalid", error)
+        return
+    if msg["subentry_type"] == SUBENTRY_GARAGE and (error := _check_garage(entry, data)):
         connection.send_error(msg["id"], "invalid", error)
         return
     sub_id = msg.get("subentry_id")

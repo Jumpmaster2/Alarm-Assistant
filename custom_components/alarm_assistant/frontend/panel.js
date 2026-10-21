@@ -130,6 +130,7 @@ const UI = {
       invalid_time: "ungültige Uhrzeit (HH:MM)",
       unknown_option: "unbekannte Einstellung",
       already_configured: "diese Entität ist bereits als Sensor angelegt",
+      wifi_required: "die Garage braucht WLAN-Sensoren (Personen oder weitere WLAN-Sensoren unter Anwesenheit)",
     },
     loadError: "Konfiguration konnte nicht geladen werden",
     up: "nach oben",
@@ -289,6 +290,7 @@ const UI = {
       invalid_time: "invalid time (HH:MM)",
       unknown_option: "unknown setting",
       already_configured: "this entity is already set up as a sensor",
+      wifi_required: "the garage needs Wi-Fi sensors (persons or additional Wi-Fi sensors under Presence)",
     },
     loadError: "Could not load the configuration",
     up: "up",
@@ -584,8 +586,9 @@ const SUBS = {
       ["garage_tts_services", "services"],
       ["garage_tts_text", "text"],
       ["garage_tts_repeat", "number", { min: 0, max: 10 }],
+      ["garage_tts_stream", "text"],
     ],
-    defaults: { garage_arm_delay: 2, garage_tts_repeat: 2, garage_networks: [], garage_motion: [] },
+    defaults: { garage_arm_delay: 2, garage_tts_repeat: 2, garage_tts_stream: "alarm_stream_max", garage_networks: [], garage_motion: [] },
   },
 };
 

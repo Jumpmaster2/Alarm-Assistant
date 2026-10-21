@@ -448,12 +448,14 @@
             "garage_motion": "Bewegungssensoren",
             "garage_tts_services": "Gesprochene Warnung auf Handys",
             "garage_tts_text": "Gesprochener Text",
-            "garage_tts_repeat": "Wiederholen"
+            "garage_tts_repeat": "Wiederholen",
+            "garage_tts_stream": "Audio-Stream (Android)"
           },
           "data_description": {
             "garage_networks": "Unscharf, solange ein Handy verbunden ist (WLAN-Sensoren der Personen und die weiteren).",
-            "garage_tts_services": "Benachrichtigungsdienste der Companion App.",
-            "garage_tts_text": "Leer = Standardtext."
+            "garage_tts_services": "Benachrichtigungsdienste der Companion App (Android), die die Warnung sprechen.",
+            "garage_tts_text": "Leer = Standardtext.",
+            "garage_tts_stream": "Stream der Android Companion App; alarm_stream_max ist auch im Lautlos-Modus laut. iPhones ignorieren dieses Feld."
           }
         },
         "reconfigure": {
@@ -466,17 +468,20 @@
             "garage_motion": "Bewegungssensoren",
             "garage_tts_services": "Gesprochene Warnung auf Handys",
             "garage_tts_text": "Gesprochener Text",
-            "garage_tts_repeat": "Wiederholen"
+            "garage_tts_repeat": "Wiederholen",
+            "garage_tts_stream": "Audio-Stream (Android)"
           },
           "data_description": {
             "garage_networks": "Unscharf, solange ein Handy verbunden ist (WLAN-Sensoren der Personen und die weiteren).",
-            "garage_tts_services": "Benachrichtigungsdienste der Companion App.",
-            "garage_tts_text": "Leer = Standardtext."
+            "garage_tts_services": "Benachrichtigungsdienste der Companion App (Android), die die Warnung sprechen.",
+            "garage_tts_text": "Leer = Standardtext.",
+            "garage_tts_stream": "Stream der Android Companion App; alarm_stream_max ist auch im Lautlos-Modus laut. iPhones ignorieren dieses Feld."
           }
         }
       },
       "error": {
-        "name_required": "Bitte einen Namen eingeben."
+        "name_required": "Bitte einen Namen eingeben.",
+        "wifi_required": "Die Garage wird über das WLAN der Handys geschaltet, es ist aber kein WLAN-Sensor eingerichtet. Bitte zuerst einen Unterpunkt Person anlegen oder weitere WLAN-Sensoren unter Optionen › Automatisch scharf eintragen."
       },
       "abort": {
         "reconfigure_successful": "Gespeichert."

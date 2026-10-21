@@ -58,7 +58,8 @@ The integration is event driven: it only reacts to state changes of the configur
 ### Garage (sub item "Garage")
 
 * A second alarm panel (e.g. Blink) is disarmed while a phone is connected to the garage network and armed again some time after leaving.
-* Motion while armed: push and spoken warning on the phones (companion app).
+* Motion while armed: push and spoken warning on the phones (companion app, spoken only on Android; the audio stream can be set).
+* The garage needs Wi-Fi sensors (person sub item or additional Wi-Fi sensors), otherwise the garage networks are rejected.
 * Switch **Garage automatic**.
 
 ### Night door alarm
@@ -92,7 +93,7 @@ The settings can still be changed through the config flow as well:
 * **Options** (menu): notifications, alarm times and code, motion filter, reactions on alarm, phone call, automatic arming, door lock, night door alarm, children and hints.
 * **Sub items:** sensor, person, camera, garage (as many as needed).
 
-Configured entities or services that do not exist are reported under Repairs after the start.
+Configured entities or services that do not exist are reported under Repairs after the start. This includes the phone call without the Supervisor (Home Assistant Container/Core have no `hassio.addon_stdin`).
 
 ## Entities
 

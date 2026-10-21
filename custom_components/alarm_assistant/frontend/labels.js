@@ -408,7 +408,7 @@ export const LABELS = {
   ],
   "garage_tts_services": [
    "Gesprochene Warnung auf Handys",
-   "Benachrichtigungsdienste der Companion App."
+   "Benachrichtigungsdienste der Companion App (Android), die die Warnung sprechen."
   ],
   "garage_tts_text": [
    "Gesprochener Text",
@@ -417,6 +417,10 @@ export const LABELS = {
   "garage_tts_repeat": [
    "Wiederholen",
    ""
+  ],
+  "garage_tts_stream": [
+   "Audio-Stream (Android)",
+   "Stream der Android Companion App; alarm_stream_max ist auch im Lautlos-Modus laut. iPhones ignorieren dieses Feld."
   ]
  },
  "en": {
@@ -826,7 +830,7 @@ export const LABELS = {
   ],
   "garage_tts_services": [
    "Spoken warning on phones",
-   "Companion app notify services."
+   "Notify services of the companion app (Android) that speak the warning."
   ],
   "garage_tts_text": [
    "Spoken text",
@@ -835,6 +839,10 @@ export const LABELS = {
   "garage_tts_repeat": [
    "Repeat",
    ""
+  ],
+  "garage_tts_stream": [
+   "Audio stream (Android)",
+   "Stream of the Android companion app; alarm_stream_max is loud even in silent mode. iPhones ignore this field."
   ]
  }
 };

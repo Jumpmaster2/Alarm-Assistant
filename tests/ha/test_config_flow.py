@@ -202,8 +202,29 @@ async def test_sensor_subentry(hass: HomeAssistant, base_states) -> None:
     assert "only_when_unavailable" not in sub.data
 
 
-async def test_camera_and_garage_subentries(hass: HomeAssistant, base_states) -> None:
+async def test_garage_needs_wifi_sensors(hass: HomeAssistant, base_states) -> None:
     entry = make_entry()
+    await setup_entry(hass, entry)
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_GARAGE), context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"],
+        {
+            "name": "Garage",
+            "garage_panel": "alarm_control_panel.garage",
+            "garage_networks": ["GarageNet"],
+            "garage_arm_delay": 2,
+            "garage_motion": [],
+            "garage_tts_services": [],
+            "garage_tts_repeat": 2,
+        },
+    )
+    assert result["errors"] == {"garage_networks": "wifi_required"}
+
+
+async def test_camera_and_garage_subentries(hass: HomeAssistant, base_states) -> None:
+    entry = make_entry(wifi_sensors=["sensor.phone_a_wifi"])
     await setup_entry(hass, entry)
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, SUBENTRY_CAMERA), context={"source": SOURCE_USER}
