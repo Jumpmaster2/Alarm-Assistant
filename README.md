@@ -2,9 +2,17 @@
 
 [English version](README.en.md)
 
-Custom Integration für Home Assistant: eine Alarmzentrale mit allem, was sonst in vielen Automationen, Skripten und Helfern steckt. Scharf- und Unscharfschalten (auch automatisch bei Abwesenheit), Ein- und Ausgangsverzögerung, offene Fenster ignorieren, Durchsagen und Alarmton auf Alexa-Geräten, Licht und Rollos bei Alarm, Telefonanruf mit Quittierung über das ha-sip-Add-on, Türschloss, Kamera-Steuerung, Garagen-Kameras, ein Nacht-Türalarm und ein Fenster-offen-Hinweis an der Haustür. Alles wird in der Oberfläche eingestellt, es sind keine eigenen Automationen nötig.
+Custom Integration für Home Assistant: eine Alarmzentrale mit allem, was sonst in vielen Automationen, Skripten und Helfern steckt. Scharf- und Unscharfschalten (auch automatisch bei Abwesenheit), Ein- und Ausgangsverzögerung, offene Fenster ignorieren, Durchsagen und Alarmton (Sirenen, Lautsprecher oder Alexa-Geräte), Licht und Rollos bei Alarm, Telefonanruf mit Quittierung über das ha-sip-Add-on, Türschloss, Kamera-Steuerung, Garagen-Kameras, ein Nacht-Türalarm und ein Fenster-offen-Hinweis an der Haustür. Alles wird in der Oberfläche eingestellt, es sind keine eigenen Automationen nötig.
 
-> Status: Version 0.4.3.
+## Voraussetzungen
+
+* Home Assistant 2026.10 oder neuer.
+* Optional, je nach Funktion:
+  * **Alarmton:** Sirenen-Entitäten (`siren.*`), Lautsprecher (`media_player.*`) für eine Ton-Datei und/oder Echo-Geräte über die Integration **Alexa Devices**.
+  * **Gesprochene Texte:** ein `notify`-Dienst, der spricht (z. B. Alexa Media).
+  * **Telefonanruf:** Home Assistant OS oder Supervised mit dem Add-on **ha-sip**.
+  * **Anwesenheit über WLAN:** Companion App mit dem WLAN-Sensor (`sensor.<handy>_wifi_connection`); alternativ HA-Personen.
+  * **Kameras:** Schalter für Privatsphäre/PTZ-Auswahl der Kamera, optional Frigate-Schalter.
 
 ## Funktionsweise
 
@@ -78,6 +86,14 @@ Die Integration arbeitet ereignisgesteuert: Sie reagiert nur auf Zustandswechsel
 3. "Alarm Assistant" installieren und Home Assistant neu starten.
 4. Unter Einstellungen > Geräte & Dienste die Integration hinzufügen.
 
+## Manuelle Installation
+
+1. Den Ordner `custom_components/alarm_assistant` aus diesem Repository (oder aus dem ZIP eines Releases) nach `<config>/custom_components/alarm_assistant` kopieren.
+2. Home Assistant neu starten.
+3. Unter Einstellungen > Geräte & Dienste > Integration hinzufügen > "Alarm Assistant" einrichten.
+
+Update: Ordner ersetzen und neu starten. Entfernen: Integration unter Geräte & Dienste löschen (der gespeicherte Zustand und die Reparatur-Meldungen werden mit entfernt), danach den Ordner löschen.
+
 ## Konfiguration
 
 Nach der Einrichtung gibt es in der Seitenleiste die Seite **Alarm Assistant** (nur für Administratoren, ähnlich wie bei Alarmo):
@@ -90,7 +106,7 @@ Nach der Einrichtung gibt es in der Seitenleiste die Seite **Alarm Assistant** (
 Die Einstellungen lassen sich weiterhin auch über den Einrichtungsdialog ändern:
 
 * **Einrichtung:** Benachrichtigungen, Alarmzeiten und Code; optional werden vorhandene Tür-, Fenster- und Bewegungsmelder (nach Geräteklasse) direkt als Sensoren übernommen.
-* **Optionen** (Menü): Benachrichtigungen, Alarmzeiten und Code, Bewegungsfilter, Reaktionen bei Alarm, Telefonanruf, Automatisch scharf, Türschloss, Nacht-Türalarm, Kinder und Hinweise.
+* **Optionen** (Menü): Alarmzeiten und Code, Benachrichtigungen, Reaktionen bei Alarm, Automatisch scharf, Türschloss, Telefonanruf, Bewegungsfilter, Nacht-Türalarm, Kinder und Hinweise. Jedes Feld hat eine Erklärung; unvollständige Angaben (z. B. Anruf ohne Nummer) werden mit einem Hinweis abgelehnt.
 * **Unterpunkte:** Sensor, Person, Kamera, Garage (beliebig viele).
 
 Eingestellte Entitäten oder Dienste, die es nicht gibt, werden nach dem Start unter Reparaturen gemeldet. Dazu gehört auch der Telefonanruf ohne Supervisor (Home Assistant Container/Core haben kein `hassio.addon_stdin`).
@@ -113,6 +129,59 @@ Entitäten von Funktionen, die nicht mehr eingerichtet sind (oder gelöschter Pe
 
 Die Zentrale wird mit den normalen Diensten `alarm_control_panel.alarm_arm_away` und `alarm_control_panel.alarm_disarm` bedient, z. B. aus einem Knopf-Blueprint.
 
+## Optionen im Überblick
+
+| Bereich | Option | Standard |
+|---|---|---|
+| Alarm | Eingangs- / Ausgangsverzögerung | 30 s / 0 s |
+| | Auslösezeit, danach unscharf | 1800 s, aus (wieder scharf) |
+| | Code (4–10 Ziffern), auch zum Scharfschalten | kein Code, aus |
+| | Ausgefallene Sensoren melden, Wartezeit | an, 60 s |
+| Benachrichtigungen | Sprache der Meldungen | Auto (wie Home Assistant) |
+| | Push / zusätzliche Alarm-Meldungen / technische Meldungen | leer |
+| Reaktionen | Alarm-Lautstärke, Lautstärke danach, zurück nach | 0,51, 0,2, 10 s |
+| | Sirenen, Alexa-Ton, Ton-Datei | leer, `amzn_sfx_scifi_alarm_04`, leer |
+| Automatisch scharf | Anwesenheit über | WLAN der Handys |
+| | Keine Bewegung seit / Vorwarnung / Warten nach Unscharf / abwesend seit mindestens | 10 / 5 / 2 / 2 min |
+| | Handy ohne bekannten Zustand zählt als | zuhause |
+| Türschloss | Entriegeln schaltet unscharf, beim Scharfschalten abschließen | an, an |
+| Telefonanruf | Quittieren mit Taste 1, Warten bis zur nächsten Nummer, Sprache, Sperrzeit | an, 50 s, wie die Meldungen, 180 s |
+| Bewegungsfilter | Nachlauf nach dem Andocken, unterdrückte Bewegung melden | 120 s, an |
+| Nacht-Türalarm | Ausschalten um, an Tagen | 05:00, Mo–Fr |
+| Kinder und Hinweise | Zurücksetzen nach Entriegeln, nachts um, Hinweis-Dauer | 10 min, 03:00, 30 s |
+
+Nur Werte, die vom Standard abweichen, werden gespeichert; ändert sich ein Standard in einer neuen Version, gilt er auch für bestehende Installationen.
+
+## Beispiel: Wohnung
+
+1. Einrichtung: Push an `notify.mobile_app_handy`, Eingangsverzögerung 30 s, Code `4711`; im letzten Schritt Haustür, drei Fenster und den Flur-Bewegungsmelder wählen.
+2. Optionen › Reaktionen: Sirene `siren.flur`, Licht `light.flur` einschalten.
+3. Unterpunkt Person je Handy mit dem WLAN-Sensor, Optionen › Automatisch scharf: Heim-WLAN eintragen.
+4. Seite Alarm Assistant › Testalarm: testweise scharf schalten, Auslösung simulieren, prüfen, unscharf schalten.
+
+## Fehlerbehebung
+
+| Problem | Prüfen |
+|---|---|
+| "Scharfschalten nicht möglich" | Der genannte Sensor ist offen und darf es nicht sein. Für Fenster "Beim Scharfschalten offen = ignorieren" einschalten, für Türen eine Ausgangsverzögerung nutzen. |
+| Kein Alarmton | Lautsprecher/Sirenen eingetragen? Bei Alexa: Geräte der Integration Alexa Devices gewählt und Sound-Name korrekt? Testalarm nutzen. |
+| Kein Anruf | Reparaturen prüfen (`hassio.addon_stdin` fehlt = kein Supervisor), Slug des ha-sip-Add-ons und Nummern prüfen, Log des Add-ons ansehen. |
+| Automatisch scharf greift nicht | Schalter "Automatisch scharf" an? "Kinder alleine zuhause" aus? Heim-WLAN genau wie im WLAN-Sensor geschrieben? Ein Handy ohne Zustand zählt als zuhause. Die Vorwarnung kommt erst nach der Ruhezeit ohne Bewegung. |
+| Unscharf beim Wiederverbinden des Schlosses | Wird seit 0.4.6 ignoriert. Tritt es trotzdem auf, bitte ein Issue mit Debug-Log öffnen. |
+| Entität fehlt | Funktionen ohne Einrichtung haben keine Entitäten (z. B. Schalter Automatisch scharf erst mit Heim-WLAN und Handy). |
+
+### Debug-Logging
+
+Unter Einstellungen > Geräte & Dienste > Alarm Assistant > "Debug-Protokollierung aktivieren", das Problem nachstellen und wieder ausschalten; das Log wird heruntergeladen. Alternativ in `configuration.yaml`:
+
+```yaml
+logger:
+  logs:
+    custom_components.alarm_assistant: debug
+```
+
+Für ein Issue zusätzlich die Diagnose herunterladen (Integration › drei Punkte › Diagnose herunterladen). Code-Hash, Telefonnummern, WLAN-Namen, Tag-ID und Namen sind darin geschwärzt.
+
 ## Umstieg
 
 Siehe [docs/migration.md](docs/migration.md).
@@ -122,8 +191,12 @@ Siehe [docs/migration.md](docs/migration.md).
 ```bash
 pip install -r requirements_test.txt ruff
 ruff check custom_components tests scripts
+ruff format --check custom_components tests scripts
+python scripts/build_labels.py --check   # Panel-Beschriftungen aus den Übersetzungen
 pytest -q
 ```
+
+Nach Änderungen an `strings.json`/`translations` `python scripts/build_labels.py` ausführen.
 
 Die Tests mit Home Assistant laufen unter Linux. Vor jeder Veröffentlichung prüft `scripts/check_privacy.py` mit einer lokalen Musterliste, dass keine privaten Daten im Repository landen.
 

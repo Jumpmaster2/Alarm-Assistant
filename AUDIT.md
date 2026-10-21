@@ -227,3 +227,28 @@ Jeder Schritt = ein eigener kleiner Commit mit Test, `ruff check`/`ruff format` 
 2. F37: Soll „Entriegeln schaltet unscharf“ für neue Installationen standardmäßig aus sein? Bestehende Installationen behalten ihren Wert.
 3. F15: Soll ein nicht verfügbares Handy künftig standardmäßig als „anwesend“ zählen?
 4. Schritt 4 ändert das Speicherformat des Codes; bestehende Codes werden beim nächsten richtigen Unscharfschalten migriert. Einverstanden?
+
+---
+
+## 7. Umsetzungsstand (nach Freigabe)
+
+Entscheidungen: (1) Push bei jedem Alarm, Sperrzeit nur für Anrufe; (2) „Entriegeln schaltet unscharf“ bleibt standardmäßig an (F37 entfällt); (3) unbekanntes Handy zählt standardmäßig als zuhause, einstellbar; (4) gesalzener Hash mit Migration.
+
+| Schritt | Funde | Version | Stand |
+|---|---|---|---|
+| 1 | F01 | 0.4.6 | erledigt |
+| 2 | F02, F12 | 0.4.6 | erledigt |
+| 3 | F03 | 0.4.6 | erledigt |
+| 4 | F04, F05, F06, F36, U5, F33 (Generator) | 0.5.0 | erledigt |
+| 5 | F07, F08, F13, U9, U10 | 0.5.0 | erledigt; F14 nur als Hinweis im Feld (Minimum bewusst nicht erhöht, damit gespeicherte Werte gültig bleiben) |
+| 6 | F10 | 0.5.0 | erledigt |
+| 7 | F11 | 0.5.0 | erledigt |
+| 8 | F09, F15, F16, F21, F22, F23 | 0.6.0 | erledigt; Standard-Anwesenheitsmodus bleibt „WLAN“, da die Unterpunkte Person nur in diesem Modus wirken |
+| 9 | U1–U4, U6 (Beschreibungen), U7, U8, U13–U15 | 0.6.0 | erledigt; Alexa-Soundliste und Kamera-Presets bleiben Freitext (keine verlässliche Liste verfügbar) |
+| 10 | F25, F26, U11, U12 | 0.6.0 | erledigt, inkl. Entfernen verwaister Entitäten |
+| 11 | Sensoren bei der Einrichtung übernehmen | 0.6.0 | erledigt |
+| 12 | F17–F20 | 0.6.1 | erledigt |
+| 13 | F29, F31, F32, F34, F35 | 0.6.1 | erledigt; F30 ohne Änderung (Datalists werden nur beim vollständigen Neuzeichnen gebaut, nicht bei jedem Zustandswechsel) |
+| 14 | F28, README, Migration, CI | 0.6.1 | erledigt; Releases/Tags und `quality_scale.yaml` nicht angelegt (Tags/Releases sind eine Aktion des Repository-Inhabers, eine Quality-Scale-Selbsteinstufung ohne Review wäre nicht belastbar) |
+
+Tests: 93 (vorher 68), `ruff check`, `ruff format --check` und `build_labels.py --check` sauber.
