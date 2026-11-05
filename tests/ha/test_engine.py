@@ -242,7 +242,7 @@ async def test_lock_falling_back_does_not_disarm(
     await advance(hass, freezer, 3)
     await set_state(hass, LOCK, "unlocked")
     assert _state(hass) == "armed_away"
-    assert any("retried" in c.data["message"] for c in calls["notify"])
+    assert not any("lock" in c.data["message"].lower() for c in calls["notify"])
     # one retry, a second failure only warns
     await advance(hass, freezer, 11)
     assert len(calls["lock"]) == 2
@@ -256,6 +256,30 @@ async def test_lock_falling_back_does_not_disarm(
     await set_state(hass, LOCK, "locked")
     await set_state(hass, LOCK, "opening")
     assert _state(hass) == "disarmed"
+
+
+@pytest.mark.parametrize("outcome", ["locked", "unchanged", "disarmed", "jammed"])
+async def test_lock_retry_outcomes(
+    hass: HomeAssistant, base_states, calls, freezer: FrozenDateTimeFactory, outcome: str
+) -> None:
+    freezer.move_to(START)
+    await setup_entry(hass, make_entry(**REACTIONS))
+    await _arm(hass)
+    if outcome == "jammed":
+        await set_state(hass, LOCK, "jammed")
+    else:
+        await set_state(hass, LOCK, "locking")
+        await set_state(hass, LOCK, "unlocked")
+    assert not any("lock" in c.data["message"].lower() for c in calls["notify"])
+    if outcome == "disarmed":
+        await _disarm(hass)
+    await advance(hass, freezer, 11)
+    assert len(calls["lock"]) == (1 if outcome == "disarmed" else 2)
+    if outcome in ("locked", "jammed"):
+        await set_state(hass, LOCK, "locked")
+    await advance(hass, freezer, 25)
+    failures = [c for c in calls["notify"] if "again" in c.data["message"]]
+    assert len(failures) == (1 if outcome == "unchanged" else 0)
 
 
 async def test_code(
@@ -802,7 +826,7 @@ async def test_jammed_lock_warns_and_retries(
     await set_state(hass, LOCK, "locking")
     await set_state(hass, LOCK, "jammed")
     assert _state(hass) == "armed_away"
-    assert any("retried" in c.data["message"] for c in calls["notify"])
+    assert not any("lock" in c.data["message"].lower() for c in calls["notify"])
     await advance(hass, freezer, 11)
     assert len(calls["lock"]) == 2
 
