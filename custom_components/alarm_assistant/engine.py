@@ -285,6 +285,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         # door lock: when we last sent "lock" and whether we already retried
         self.lock_sent: datetime | None = None
         self.lock_retried = False
+        self.lock_failure_reported = False
         # call
         self.call_block_until: datetime | None = None
         self.call_acked = False
@@ -1036,6 +1037,8 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         else:
             self._log("log_auto_armed" if automatic else "log_armed")
         self.lock_retried = False
+        self.lock_failure_reported = False
+        self._cancel("lock_check")
         self._lock_door()
         for entity_id in self._filter("armed_on", self.opt_list(CONF_ARM_ON_ENTITIES)):
             self.config_entry.async_create_task(
@@ -1095,20 +1098,42 @@ class AlarmEngine(DataUpdateCoordinator[None]):
 
     def _lock_failed(self) -> None:
         self.lock_sent = None
-        self._log("log_lock_failed")
-        retry = not self.lock_retried
-        self._notify(
-            self._push(CONF_NOTIFY),
-            self._mark(self.t("title_lock_failed")),
-            self._mark(self.t("push_lock_retry" if retry else "push_lock_failed")),
-        )
-        if retry:
+        if not self.lock_retried:
             self.lock_retried = True
+            self._log("log_lock_retry", seconds=LOCK_RETRY)
             self._schedule(
                 "lock_retry",
                 dt_util.utcnow() + timedelta(seconds=LOCK_RETRY),
-                lambda _now: self._lock_door() if self.state in sm.ARMED_STATES else None,
+                self._retry_lock,
             )
+        elif not self.lock_failure_reported:
+            self.lock_failure_reported = True
+            self._cancel("lock_check")
+            self._log("log_lock_failed")
+            self._notify(
+                self._push(CONF_NOTIFY),
+                self._mark(self.t("title_lock_failed")),
+                self._mark(self.t("push_lock_failed")),
+            )
+
+    def _retry_lock(self, _now: datetime) -> None:
+        lock = self.opt(CONF_LOCK)
+        if self.state not in sm.ARMED_STATES or not lock or not self.opt(CONF_LOCK_ON_ARM):
+            return
+        if self.kids_home or not self._filter("lock", [lock]):
+            return
+        door = self.opt(CONF_LOCK_DOOR)
+        if (door and self._value(door) != sm.OFF) or self._value(lock) in (*INVALID, None):
+            self._lock_failed()
+            return
+        self._lock_door()
+        self._schedule(
+            "lock_check", dt_util.utcnow() + timedelta(seconds=LOCK_SETTLE), self._check_lock
+        )
+
+    def _check_lock(self, _now: datetime) -> None:
+        if self.state in sm.ARMED_STATES and self._value(self.opt(CONF_LOCK)) != "locked":
+            self._lock_failed()
 
     def disarm(self, by_lock: bool = False) -> None:
         if self.state == sm.DISARMED:
@@ -1116,7 +1141,7 @@ class AlarmEngine(DataUpdateCoordinator[None]):
         if self.state == sm.TRIGGERED:
             self._sirens_off()
         self.lock_sent = None
-        for key in ("exit", "entry", "trigger_end", "lock_retry"):
+        for key in ("exit", "entry", "trigger_end", "lock_retry", "lock_check"):
             self._cancel(key)
         self.state = sm.DISARMED
         self.bypassed = []

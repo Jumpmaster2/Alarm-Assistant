@@ -36,11 +36,6 @@ _TEXTS: dict[str, dict[str, str]] = {
         "en": "Alarm armed, these open sensors are ignored until disarming: {sensors}.",
     },
     "title_lock_failed": {"de": "Tür nicht abgeschlossen", "en": "Door not locked"},
-    "push_lock_retry": {
-        "de": "Das Schloss hat sich nicht verriegelt. Die Alarmanlage bleibt scharf, "
-        "Abschließen wird gleich noch einmal versucht.",
-        "en": "The lock did not engage. The alarm stays armed, locking is retried shortly.",
-    },
     "push_lock_failed": {
         "de": "Das Schloss hat sich wieder nicht verriegelt. Die Alarmanlage bleibt scharf, "
         "die Tür ist aber nicht abgeschlossen.",
@@ -142,6 +137,10 @@ _TEXTS: dict[str, dict[str, str]] = {
     },
     "log_auto_armed": {"de": "Automatisch scharf geschaltet", "en": "Armed automatically"},
     "log_locked": {"de": "Tür abgeschlossen", "en": "Door locked"},
+    "log_lock_retry": {
+        "de": "Abschließen nicht bestätigt, neuer Versuch in {seconds} s",
+        "en": "Locking not confirmed, retrying in {seconds} s",
+    },
     "log_lock_failed": {
         "de": "Abschließen fehlgeschlagen, bleibt scharf",
         "en": "Locking failed, stays armed",
